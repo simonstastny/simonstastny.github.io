@@ -6,167 +6,666 @@
 <title>Podvodník</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&family=Spline+Sans:wght@400;500;600;700&family=Archivo:wght@500;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 /* ============ THEME TOKENS ============ */
 :root{
-  --bg:#efe9da; --surface:#fffdf6; --surface-2:#f6f0e2; --fg:#111111; --muted:#5c574b;
-  --accent:#c04a24; --accent-soft:#f6e3d8; --on-accent:#ffffff; --danger:#c04a24;
-  --border:#111111; --bw:2.5px; --radius:3px; --radius-lg:5px;
+  --bg:#efe9da;
+  --surface:#fffdf6;
+  --surface-2:#f6f0e2;
+  --fg:#111111;
+  --muted:#5c574b;
+  --accent:#c04a24;
+  --accent-soft:#f6e3d8;
+  --on-accent:#ffffff;
+  --danger:#c04a24;
+  --border:#111111;
+  --bw:2.5px;
+  --radius:3px;
+  --radius-lg:5px;
   --shadow:5px 5px 0 #111111;
   --card-shadow:7px 7px 0 #111111;
-  --btn-shadow:4px 4px 0 #111111; --btn-border:#111111;
+  --btn-shadow:4px 4px 0 #111111;
+  --btn-border:#111111;
   --font-title:'Archivo', system-ui, sans-serif;
   --font-body:'Space Mono', monospace;
-  --title-weight:900; --title-transform:uppercase; --title-spacing:-0.01em;
-  --title-stretch:120%; --press:0px;
+  --title-weight:900;
+  --title-transform:uppercase;
+  --title-spacing:-0.01em;
+  --title-stretch:120%;
+  --press:0px;
 }
 
-*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
-html,body{height:100%; padding-bottom:20px;}
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  -webkit-tap-highlight-color:transparent;
+}
+html,body{
+  height:100%;
+  padding-bottom:20px;
+}
 body{
   font-family:var(--font-body);
-  background:var(--bg); color:var(--fg);
-  display:flex; flex-direction:column; min-height:100%;
+  background:var(--bg);
+  color:var(--fg);
+  display:flex;
+  flex-direction:column;
+  min-height:100%;
   overflow-x:hidden;
 }
 
-#app{flex:1; display:flex; flex-direction:column; padding:22px 22px 40px; min-height:100%; width:100%; max-width:460px; margin:0 auto;}
+#app{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  padding:22px 22px 40px;
+  min-height:100%;
+  width:100%;
+  max-width:460px;
+  margin:0 auto;
+}
 
-h1,h2,h3{font-family:var(--font-title); font-weight:var(--title-weight); text-transform:var(--title-transform); letter-spacing:var(--title-spacing); font-stretch:var(--title-stretch); line-height:1.02;}
+h1,h2,h3{
+  font-family:var(--font-title);
+  font-weight:var(--title-weight);
+  text-transform:var(--title-transform);
+  letter-spacing:var(--title-spacing);
+  font-stretch:var(--title-stretch);
+  line-height:1.02;
+}
 
 /* ============ SHARED ELEMENTS ============ */
-.screen{flex:1; display:flex; flex-direction:column; animation:rise .42s cubic-bezier(.2,.7,.2,1) both;}
-@keyframes rise{from{transform:translateY(16px);} to{transform:none;}}
-@media (prefers-reduced-motion: reduce){.screen{animation:none;}}
+.screen{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  animation:rise .42s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes rise{
+  from{transform:translateY(16px);}
+  to{transform:none;}
+}
+@media (prefers-reduced-motion: reduce){
+  .screen{animation:none;}
+}
 
-.topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:17px;}
-.wordmark{font-family:var(--font-title); font-weight:var(--title-weight); text-transform:uppercase; letter-spacing:.14em; font-size:12px; display:flex; align-items:center; gap:8px; font-stretch:var(--title-stretch); cursor:pointer; user-select:none; outline:none;}
-.wordmark-logo{width:44px; height:20px; flex:0 0 auto;}
-.wordmark:hover{opacity:.7;}
-.wordmark:focus-visible{text-decoration:underline; text-underline-offset:3px;}
-.dot{flex:0 0 auto; width:9px; height:9px; border-radius:var(--radius); background:var(--accent);}
-.dot{border:2px solid #111;}
-.chip-mini{font-family:var(--font-body); font-size:12px; font-weight:600; color:var(--muted); border:var(--bw) solid var(--border); border-radius:3px; padding:5px 11px; letter-spacing:.02em;}
-.lang-switch{display:flex; align-items:stretch; border:var(--bw) solid var(--border); border-radius:999px; overflow:hidden; flex:0 0 auto;}
-.lang-switch{border-radius:3px;}
-.lang-switch button{appearance:none; border:0; background:transparent; color:var(--muted); font-family:var(--font-body); font-size:12px; font-weight:700; letter-spacing:.08em; padding:6px 11px; cursor:pointer; transition:background .15s, color .15s;}
-.lang-switch button.on{background:var(--accent); color:var(--on-accent);}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:17px;
+}
+.wordmark{
+  font-family:var(--font-title);
+  font-weight:var(--title-weight);
+  text-transform:uppercase;
+  letter-spacing:.14em;
+  font-size:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-stretch:var(--title-stretch);
+  cursor:pointer;
+  user-select:none;
+  outline:none;
+}
+.wordmark-logo{
+  width:44px;
+  height:20px;
+  flex:0 0 auto;
+}
+.wordmark:hover{
+  opacity:.7;
+}
+.wordmark:focus-visible{
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.chip-mini{
+  font-family:var(--font-body);
+  font-size:12px;
+  font-weight:600;
+  color:var(--muted);
+  border:var(--bw) solid var(--border);
+  border-radius:3px;
+  padding:5px 11px;
+  letter-spacing:.02em;
+}
+.lang-switch{
+  display:flex;
+  align-items:stretch;
+  border:var(--bw) solid var(--border);
+  border-radius:3px;
+  overflow:hidden;
+  flex:0 0 auto;
+}
+.lang-switch button{
+  appearance:none;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  font-family:var(--font-body);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.08em;
+  padding:6px 11px;
+  cursor:pointer;
+  transition:background .15s, color .15s;
+}
+.lang-switch button.on{
+  background:var(--accent);
+  color:var(--on-accent);
+}
 
 .btn{
-  font-family:var(--font-title); font-size:20px; font-weight:var(--title-weight);
-  text-transform:var(--title-transform); letter-spacing:var(--title-spacing); font-stretch:var(--title-stretch);
-  width:100%; padding:18px 20px; border-radius:var(--radius);
-  background:var(--accent); color:var(--on-accent);
-  border:var(--bw) solid var(--btn-border); box-shadow:var(--btn-shadow);
-  cursor:pointer; transition:transform .12s ease, box-shadow .12s ease, background .15s ease;
-  display:flex; align-items:center; justify-content:center; gap:9px;
+  font-family:var(--font-title);
+  font-size:20px;
+  font-weight:var(--title-weight);
+  text-transform:var(--title-transform);
+  letter-spacing:var(--title-spacing);
+  font-stretch:var(--title-stretch);
+  width:100%;
+  padding:18px 20px;
+  border-radius:var(--radius);
+  background:var(--accent);
+  color:var(--on-accent);
+  border:var(--bw) solid var(--btn-border);
+  box-shadow:var(--btn-shadow);
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, background .15s ease;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
 }
-.btn:active{transform:translate(var(--press),var(--press)); box-shadow:none;}
-.btn.ghost{background:transparent; color:var(--fg); box-shadow:none; border:var(--bw) solid var(--border);}
-.btn.soft{background:var(--surface); color:var(--fg); box-shadow:var(--btn-shadow); border:var(--bw) solid var(--btn-border);}
-.btn.lg{padding:22px;}
-.btn-row{display:flex; flex-direction:column; gap:12px; margin-top:auto; margin-bottom:20px;}
+.btn:active{
+  transform:translate(var(--press),var(--press));
+  box-shadow:none;
+}
+.btn.ghost{
+  background:transparent;
+  color:var(--fg);
+  box-shadow:none;
+  border:var(--bw) solid var(--border);
+}
+.btn.lg{
+  padding:22px;
+}
+.btn-row{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin-top:auto;
+  margin-bottom:20px;
+}
 
-.label{font-size:14px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--muted);}
+.label{
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
 
 /* ============ SETUP ============ */
-.hero{margin-bottom:30px;}
-.hero h1{font-size:40px; line-height:.94; margin-bottom:14px;}
-.hero p{color:var(--muted); font-size:14px; max-width:100%; line-height:1.45;}
+.hero{
+  margin-bottom:30px;
+}
+.hero h1{
+  font-size:40px;
+  line-height:.94;
+  margin-bottom:14px;
+}
+.hero p{
+  color:var(--muted);
+  font-size:14px;
+  max-width:100%;
+  line-height:1.45;
+}
 
-.field{background:var(--surface); border:var(--bw) solid var(--border); border-radius:var(--radius-lg); padding:15px 15px; box-shadow:var(--shadow); margin-bottom:14px;}
-.field .frow{display:flex; align-items:center; justify-content:space-between; gap:14px;}
-.field .fmeta{display:flex; flex-direction:column; gap:3px;}
-.field .fmeta .v{font-family:var(--font-title); font-size:20px; font-weight:var(--title-weight); text-transform:none; letter-spacing:0;}
-.field .fmeta .s{font-size:12px; color:var(--muted);}
+.field{
+  background:var(--surface);
+  border:var(--bw) solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:15px 15px;
+  box-shadow:var(--shadow);
+  margin-bottom:14px;
+}
+.field .frow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.field .fmeta{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.field .fmeta .v{
+  font-family:var(--font-title);
+  font-size:20px;
+  font-weight:var(--title-weight);
+  text-transform:none;
+  letter-spacing:0;
+}
+.field .fmeta .s{
+  font-size:12px;
+  color:var(--muted);
+}
 
-.stepper{display:flex; align-items:center; gap:6px;}
-.step-btn{width:46px; height:46px; border-radius:var(--radius); border:var(--bw) solid var(--border); background:var(--surface-2); color:var(--fg); font-size:30px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .1s, background .15s; font-family:var(--font-body);}
-.step-btn:active{transform:scale(.92);}
-.step-btn:disabled{opacity:.3; cursor:not-allowed;}
-.step-val{font-family:var(--font-title); font-size:30px; font-weight:var(--title-weight); min-width:50px; text-align:center; font-stretch:var(--title-stretch);}
+.stepper{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.step-btn{
+  width:46px;
+  height:46px;
+  border-radius:var(--radius);
+  border:var(--bw) solid var(--border);
+  background:var(--surface-2);
+  color:var(--fg);
+  font-size:30px;
+  font-weight:600;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:transform .1s, background .15s;
+  font-family:var(--font-body);
+}
+.step-btn:active{
+  transform:scale(.92);
+}
+.step-btn:disabled{
+  opacity:.3;
+  cursor:not-allowed;
+}
+.step-val{
+  font-family:var(--font-title);
+  font-size:30px;
+  font-weight:var(--title-weight);
+  min-width:50px;
+  text-align:center;
+  font-stretch:var(--title-stretch);
+}
 
-.rec-tag{display:inline-flex; align-items:center; gap:6px; margin-top:12px; font-size:12px; color:var(--accent); font-weight:600;}
-.rec-tag.muted{color:var(--muted);}
-.rec-pill{cursor:pointer; border:var(--bw) solid var(--accent); color:var(--accent); background:var(--accent-soft); border-radius:3px; padding:4px 11px; font-size:12px; font-weight:700; font-family:var(--font-body);}
+.rec-tag{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin-top:12px;
+  font-size:12px;
+  color:var(--accent);
+  font-weight:600;
+}
+.rec-tag.muted{
+  color:var(--muted);
+}
 
-.cats{display:flex; gap:8px; overflow-x:auto; padding:4px 0 6px; margin:0 -2px; scrollbar-width:none;}
-.cats::-webkit-scrollbar{display:none;}
-.cat{flex:0 0 auto; padding:11px 16px; border-radius:var(--radius); border:var(--bw) solid var(--border); background:var(--surface); color:var(--fg); font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-body);}ly:var(--font-body); white-space:nowrap; transition:all .15s;}
-.cat{border-radius:3px;}
-.cat.on{background:var(--accent); color:var(--on-accent); border-color:var(--btn-border);}
+.cats{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding:4px 0 6px;
+  margin:0 -2px;
+  scrollbar-width:none;
+}
+.cats::-webkit-scrollbar{
+  display:none;
+}
+.cat{
+  flex:0 0 auto;
+  padding:11px 16px;
+  border-radius:3px;
+  border:var(--bw) solid var(--border);
+  background:var(--surface);
+  color:var(--fg);
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  font-family:var(--font-body);
+  white-space:nowrap;
+  transition:all .15s;
+}
+.cat.on{
+  background:var(--accent);
+  color:var(--on-accent);
+  border-color:var(--btn-border);
+}
+.field-heading{
+  margin-bottom:12px;
+}
 
 /* ============ PASS / REVEAL ============ */
-.center{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px;}
-.pass-num{font-family:var(--font-title); font-size:80px; font-weight:var(--title-weight); line-height:1; font-stretch:var(--title-stretch);}
-.pass-sub{color:var(--muted); font-size:14px; max-width:26ch; line-height:1.5; margin-top:4px;}
-.eye{width:78px; height:78px; border-radius:50%; border:var(--bw) solid var(--border); display:flex; align-items:center; justify-content:center; margin-bottom:18px; background:var(--surface); box-shadow:var(--shadow);}
-.eye{border-radius:6px;}
-.eye svg{width:38px; height:38px; stroke:var(--accent); fill:none; stroke-width:2;}
+.center{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:8px;
+}
+.pass-num{
+  font-family:var(--font-title);
+  font-size:80px;
+  font-weight:var(--title-weight);
+  line-height:1;
+  font-stretch:var(--title-stretch);
+}
+.pass-sub{
+  color:var(--muted);
+  font-size:14px;
+  max-width:26ch;
+  line-height:1.5;
+  margin-top:4px;
+}
+.eye{
+  width:78px;
+  height:78px;
+  border-radius:6px;
+  border:var(--bw) solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:18px;
+  background:var(--surface);
+  box-shadow:var(--shadow);
+}
+.eye svg{
+  width:38px;
+  height:38px;
+  stroke:var(--accent);
+  fill:none;
+  stroke-width:2;
+}
 
 /* card */
-.deal-stage{flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:22px;}
-.card{display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px; min-height:380px; background:var(--surface); border:var(--bw) solid var(--border); border-radius:var(--radius-lg); padding:38px 26px; box-shadow:var(--card-shadow); transform-origin:center top; animation:flip .5s cubic-bezier(.2,.7,.2,1) both;}
-@keyframes flip{from{transform:perspective(900px) rotateX(-16deg) translateY(14px);} to{transform:none;}}
-@media (prefers-reduced-motion: reduce){.card{animation:none;}}
-.card .role{font-size:14px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--muted);}
-.card .topic{font-size:14px; color:var(--muted);}
-.card .topic b{color:var(--fg); font-weight:700;}
-.word{align-self:stretch; font-family:var(--font-title); font-size:40px; font-weight:var(--title-weight); line-height:1.02; text-transform:var(--title-transform); letter-spacing:var(--title-spacing); font-stretch:var(--title-stretch); text-wrap:balance; overflow-wrap:normal; word-break:normal;}
-.card .hint{font-size:14px; color:var(--muted); max-width:28ch; line-height:1.5;}
-.badge{display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:999px; font-family:var(--font-title); font-weight:var(--title-weight); text-transform:uppercase; letter-spacing:.1em; font-size:14px; font-stretch:var(--title-stretch);}
-.badge{border-radius:4px; border:2.5px solid #111;}
-.badge.crew{background:var(--accent-soft); color:var(--accent);}
-.badge.imp{background:var(--danger); color:#fff;}
-.imp-mark{font-family:var(--font-title); font-size:30px; font-weight:var(--title-weight); color:var(--danger); text-transform:uppercase; letter-spacing:.04em; font-stretch:var(--title-stretch);}
+.deal-stage{
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:22px;
+}
+.card{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:14px;
+  min-height:380px;
+  background:var(--surface);
+  border:var(--bw) solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:38px 26px;
+  box-shadow:var(--card-shadow);
+  transform-origin:center top;
+  animation:flip .5s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes flip{
+  from{transform:perspective(900px) rotateX(-16deg) translateY(14px);}
+  to{transform:none;}
+}
+@media (prefers-reduced-motion: reduce){
+  .card{animation:none;}
+}
+.card .role{
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.card .topic{
+  font-size:14px;
+  color:var(--muted);
+}
+.card .topic b{
+  color:var(--fg);
+  font-weight:700;
+}
+.word{
+  align-self:stretch;
+  font-family:var(--font-title);
+  font-size:40px;
+  font-weight:var(--title-weight);
+  line-height:1.02;
+  text-transform:var(--title-transform);
+  letter-spacing:var(--title-spacing);
+  font-stretch:var(--title-stretch);
+  text-wrap:balance;
+  overflow-wrap:normal;
+  word-break:normal;
+}
+.card .hint{
+  font-size:14px;
+  color:var(--muted);
+  max-width:28ch;
+  line-height:1.5;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 16px;
+  border-radius:4px;
+  border:2.5px solid #111;
+  font-family:var(--font-title);
+  font-weight:var(--title-weight);
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  font-size:14px;
+  font-stretch:var(--title-stretch);
+}
+.badge.crew{
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+.badge.imp{
+  background:var(--danger);
+  color:#fff;
+}
+.imp-mark{
+  font-family:var(--font-title);
+  font-size:30px;
+  font-weight:var(--title-weight);
+  color:var(--danger);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  font-stretch:var(--title-stretch);
+}
 
-.progress{display:flex; gap:5px; justify-content:center;}
-.pip{width:8px; height:8px; border-radius:50%; background:var(--border);}
-.pip.done{background:var(--accent);}
-.pip.now{background:var(--accent); transform:scale(1.5);}
-.pip{border-radius:2px;}
+.progress{
+  display:flex;
+  gap:5px;
+  justify-content:center;
+}
+.pip{
+  width:8px;
+  height:8px;
+  border-radius:2px;
+  background:var(--border);
+}
+.pip.done{
+  background:var(--accent);
+}
+.pip.now{
+  background:var(--accent);
+  transform:scale(1.5);
+}
 
 /* ============ PLAY ============ */
-.play-card{background:var(--surface); border:var(--bw) solid var(--border); border-radius:var(--radius-lg); padding:26px 22px; box-shadow:var(--shadow); text-align:center; margin-bottom:14px;}
-.play-card .start-name{font-family:var(--font-title); font-size:40px; font-weight:var(--title-weight); margin-top:6px; font-stretch:var(--title-stretch); text-transform:var(--title-transform); letter-spacing:var(--title-spacing);}
-.rules{display:flex; flex-direction:column; gap:12px; margin:6px 0 4px;}
-.rule{display:flex; gap:13px; align-items:flex-start; text-align:left;}
-.rule .n{flex:0 0 auto; width:26px; height:26px; border-radius:3px; border:2px solid #111; background:var(--accent-soft); color:var(--accent); font-family:var(--font-title); font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center;}
-.rule p{font-size:14px; line-height:1.45; color:var(--fg); padding-top:3px;}
+.play-intro{
+  margin-bottom:20px;
+}
+.play-intro .label{
+  margin-bottom:10px;
+}
+.clockwise{
+  color:var(--muted);
+  font-size:13px;
+  margin-top:6px;
+}
+.play-card{
+  background:var(--surface);
+  border:var(--bw) solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:26px 22px;
+  box-shadow:var(--shadow);
+  text-align:center;
+  margin-bottom:14px;
+}
+.play-card .start-name{
+  font-family:var(--font-title);
+  font-size:40px;
+  font-weight:var(--title-weight);
+  margin-top:6px;
+  font-stretch:var(--title-stretch);
+  text-transform:var(--title-transform);
+  letter-spacing:var(--title-spacing);
+}
+.rules{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  margin:6px 0 4px;
+}
+.rule{
+  display:flex;
+  gap:13px;
+  align-items:flex-start;
+  text-align:left;
+}
+.rule .n{
+  flex:0 0 auto;
+  width:26px;
+  height:26px;
+  border-radius:3px;
+  border:2px solid #111;
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-family:var(--font-title);
+  font-weight:700;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.rule p{
+  font-size:14px;
+  line-height:1.45;
+  color:var(--fg);
+  padding-top:3px;
+}
 
 /* ============ REVEAL RESULT ============ */
-.result-word{text-align:center; margin:10px 0 4px;}
-.imp-list{background:var(--surface); border:var(--bw) solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow); margin:18px 0; text-align:center;}
-.imp-list .who{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:12px;}
-.imp-list .who .p{background:rgb(192, 74, 36); color:#fff; font-family:var(--font-title); font-weight:var(--title-weight); padding:8px 16px; border-radius:999px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; font-stretch:var(--title-stretch); white-space:nowrap;}
-.imp-list .who .p{border-radius:4px; border:2.5px solid #111;}
-.spacer{flex:1;}
+.result-word{
+  text-align:center;
+  margin:10px 0 4px;
+}
+.result-word .word,
+.result-word .topic{
+  margin-top:8px;
+}
+.imp-list{
+  background:var(--surface);
+  border:var(--bw) solid var(--border);
+  border-radius:var(--radius-lg);
+  padding:20px;
+  box-shadow:var(--shadow);
+  margin:18px 0;
+  text-align:center;
+}
+.imp-list .who{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:center;
+  margin-top:12px;
+}
+.imp-list .who .p{
+  background:rgb(192, 74, 36);
+  color:#fff;
+  font-family:var(--font-title);
+  font-weight:var(--title-weight);
+  padding:8px 16px;
+  border-radius:4px;
+  border:2.5px solid #111;
+  font-size:14px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  font-stretch:var(--title-stretch);
+  white-space:nowrap;
+}
+.spacer{
+  flex:1;
+}
 
 /* ============ MODAL ============ */
-.modal-backdrop{position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(20,18,14,.55); animation:fade .18s ease both;}
-@keyframes fade{from{opacity:0;} to{opacity:1;}}
-.modal{width:100%; max-width:380px; background:var(--surface); border:var(--bw) solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--card-shadow); padding:28px 24px 24px; text-align:center; animation:rise .26s cubic-bezier(.2,.7,.2,1) both;}
-.modal h3{font-family:var(--font-title); font-size:40px; font-weight:var(--title-weight); text-transform:var(--title-transform); letter-spacing:var(--title-spacing); font-stretch:var(--title-stretch); margin-bottom:8px;}
-.modal p{color:var(--muted); font-size:14px; line-height:1.5; margin-bottom:20px;}
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:50;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(20,18,14,.55);
+  animation:fade .18s ease both;
+}
+@keyframes fade{
+  from{opacity:0;}
+  to{opacity:1;}
+}
+.modal{
+  width:100%;
+  max-width:380px;
+  background:var(--surface);
+  border:var(--bw) solid var(--border);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--card-shadow);
+  padding:28px 24px 24px;
+  text-align:center;
+  animation:rise .26s cubic-bezier(.2,.7,.2,1) both;
+}
+.modal h3{
+  font-family:var(--font-title);
+  font-size:40px;
+  font-weight:var(--title-weight);
+  text-transform:var(--title-transform);
+  letter-spacing:var(--title-spacing);
+  font-stretch:var(--title-stretch);
+  margin-bottom:8px;
+}
+.modal p{
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.5;
+  margin-bottom:20px;
+}
+.modal .btn-row{
+  margin-top:4px;
+}
 </style>
-<link id="gfont-Abril-Fatface" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Abril+Fatface:wght@300;400;500;600;700&amp;display=swap">
-<link id="gfont-Bebas-Neue" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@300;400;500;600;700&amp;display=swap">
-<link id="gfont-Pacifico" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico:wght@300;400;500;600;700&amp;display=swap">
-<link id="gfont-Architects-Daughter" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter:wght@300;400;500;600;700&amp;display=swap">
-<link id="gfont-Permanent-Marker" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker:wght@300;400;500;600;700&amp;display=swap">
 </head>
 <body>
 <div id="app"></div>
 
 <script>
 /* ============ WORD BANK ============ */
-const CATKEYS = ['food','animals','places','objects','sports','movies'];
-const CATLABEL = {
+const categoryKeys = ['food','animals','places','objects','sports','movies'];
+const categoryLabels = {
   cs: { random:'Náhodně', food:'Jídlo', animals:'Zvířata', places:'Místa', objects:'Předměty', sports:'Sport', movies:'Filmy' },
   en: { random:'Random', food:'Food', animals:'Animals', places:'Places', objects:'Objects', sports:'Sports', movies:'Movies' }
 };
-const WORDS = {
+const wordBank = {
   cs: {
     food: ["Pizza","Avokádo","Palačinky","Sushi","Popcorn","Špagety","Meloun","Kobliha","Tacos","Okurka","Cheeseburger","Zmrzlina"],
     animals: ["Tučňák","Chobotnice","Slon","Ježek","Delfín","Klokan","Plameňák","Krokodýl","Veverka","Sova","Žirafa","Medúza"],
@@ -187,26 +686,26 @@ const WORDS = {
 
 /* ============ I18N ============ */
 // Czech accusative form after "pro": 2–4 → "hráče", 5+ → "hráčů"
-const plH = n => (n>=5 ? 'hráčů' : 'hráče');
-const I18N = {
+const czechPlayerNoun = count => (count>=5 ? 'hráčů' : 'hráče');
+const translations = {
   cs: {
     heroTitle:'Odhalíte<br>podvodníka?',
     heroSub:'Každý dostane tajné slovo — kromě podvodníků, kteří znají jen téma. Pošlete telefon dokola a pak si o tom promluvte.',
     players:'Hráči', playersSub:'Všichni u stolu',
     impostors:'Podvodníci', impostorsSub:'Neznají slovo',
-    rec:n=>`✓ Doporučeno pro ${n} ${plH(n)}`,
-    sug:(r,n)=>`Návrh: ${r} pro ${n} ${plH(n)}`,
+    rec:playerCount=>`✓ Doporučeno pro ${playerCount} ${czechPlayerNoun(playerCount)}`,
+    sug:(recommendedCount,playerCount)=>`Návrh: ${recommendedCount} pro ${playerCount} ${czechPlayerNoun(playerCount)}`,
     topic:'Téma', topicSub:'Podvodníci se dozvědí tuto kategorii',
     deal:'Rozdat karty →',
-    cardOf:(p,n)=>`Karta ${p} z ${n}`,
-    passTo:'Předejte telefon', player:p=>`Hráč ${p}`,
+    cardOf:(cardNumber,totalCards)=>`Karta ${cardNumber} z ${totalCards}`,
+    passTo:'Předejte telefon', player:playerNumber=>`Hráč ${playerNumber}`,
     passSub:'Ujistěte se, že na obrazovku nevidí nikdo jiný, a klepnutím odhalte svou tajnou roli.',
     tapReveal:'Klepnutím odhalit',
     impBadge:'Podvodník', impMark:'Jste podvodník',
-    impTopic:c=>`Téma je <b>${c}</b>`,
+    impTopic:category=>`Téma je <b>${category}</b>`,
     impHint:'Tajné slovo neznáte. Pozorně poslouchejte, dejte vágní nápovědu, která sedí k tématu, a nenechte se odhalit.',
     crewBadge:'Člen týmu', role:'Tajné slovo je',
-    crewTopic:c=>`Téma je <b>${c}</b>`,
+    crewTopic:category=>`Téma je <b>${category}</b>`,
     crewHint:'Až budete na řadě, popište ho jediným slovem — dost jasně pro tým, ale tak, aby se prozradil podvodník.',
     startGame:'Všichni připraveni — začít', hidePass:'Skrýt a předat dál',
     roundInPlay:'Probíhá kolo', cardsDealt:'Karty rozdány',
@@ -214,11 +713,11 @@ const I18N = {
     startsRound:'Začíná kolo', clockwise:'pak po směru hodinových ručiček →',
     rule1:'Až budete na řadě, řekněte <b>jedno slovo</b>, které popisuje tajné slovo. <span>Bez opakování.</span>',
     rule2:'Po jednom dvou kolech <b>diskutujte a hlasujte</b>, kdo to podle vás předstírá.',
-    rule3:n=>`Níže odhalte slovo a ${n>1?'podvodníky':'podvodníka'}.`,
+    rule3:impostorCount=>`Níže odhalte slovo a ${impostorCount>1?'podvodníky':'podvodníka'}.`,
     revealBtn:'Odhalit řešení',
     revealChip:'Odhalení', secretWordWas:'Tajné slovo bylo',
-    topicDot:c=>`Téma bylo <b>${c}</b>`,
-    impWas:n=> n>1?'Podvodníci byli':'Podvodník byl',
+    topicDot:category=>`Téma bylo <b>${category}</b>`,
+    impWas:impostorCount=> impostorCount>1?'Podvodníci byli':'Podvodník byl',
     playAgain:'Hrát znovu · stejné nastavení', changeSetup:'Změnit nastavení',
     confirmTitle:'Opustit hru?', confirmBody:'Rozehraná hra se ztratí a začnete nové nastavení.', leave:'Opustit hru', stay:'Zůstat'
   },
@@ -227,19 +726,19 @@ const I18N = {
     heroSub:'Everyone gets the secret word — except the impostors, who only know the topic. Pass the phone, then talk it out.',
     players:'Players', playersSub:'Everyone at the table',
     impostors:'Impostors', impostorsSub:"Don't know the word",
-    rec:n=>`✓ Recommended for ${n} player${n===1?'':'s'}`,
-    sug:(r,n)=>`Suggested: ${r} for ${n} player${n===1?'':'s'}`,
+    rec:playerCount=>`✓ Recommended for ${playerCount} player${playerCount===1?'':'s'}`,
+    sug:(recommendedCount,playerCount)=>`Suggested: ${recommendedCount} for ${playerCount} player${playerCount===1?'':'s'}`,
     topic:'Topic', topicSub:'Impostors are told this category',
     deal:'Deal cards →',
-    cardOf:(p,n)=>`Card ${p} of ${n}`,
-    passTo:'Pass the phone to', player:p=>`Player ${p}`,
+    cardOf:(cardNumber,totalCards)=>`Card ${cardNumber} of ${totalCards}`,
+    passTo:'Pass the phone to', player:playerNumber=>`Player ${playerNumber}`,
     passSub:'Make sure nobody else can see the screen, then tap to reveal your secret role.',
     tapReveal:'Tap to reveal',
     impBadge:'Impostor', impMark:"You're the impostor",
-    impTopic:c=>`The topic is <b>${c}</b>`,
+    impTopic:category=>`The topic is <b>${category}</b>`,
     impHint:"You don't know the secret word. Listen closely, give a vague clue that fits the topic, and don't get caught.",
     crewBadge:'Crewmate', role:'The secret word is',
-    crewTopic:c=>`Topic is <b>${c}</b>`,
+    crewTopic:category=>`Topic is <b>${category}</b>`,
     crewHint:'On your turn, describe it with a single word — clear enough for your team, subtle enough to expose the impostor.',
     startGame:"Everyone's ready — start", hidePass:'Hide & pass on',
     roundInPlay:'Round in play', cardsDealt:'Cards dealt',
@@ -247,58 +746,59 @@ const I18N = {
     startsRound:'Starts the round', clockwise:'then go clockwise →',
     rule1:'On your turn, say <b>one word</b> describing the secret word. <span>No repeats.</span>',
     rule2:'After a lap or two, <b>discuss &amp; vote</b> on who you think is faking it.',
-    rule3:n=>`Reveal below to see the word and the impostor${n>1?'s':''}.`,
+    rule3:impostorCount=>`Reveal below to see the word and the impostor${impostorCount>1?'s':''}.`,
     revealBtn:'Reveal the answer',
     revealChip:'Reveal', secretWordWas:'The secret word was',
-    topicDot:c=>`Topic was <b>${c}</b>`,
-    impWas:n=> n>1?'The impostors were':'The impostor was',
+    topicDot:category=>`Topic was <b>${category}</b>`,
+    impWas:impostorCount=> impostorCount>1?'The impostors were':'The impostor was',
     playAgain:'Play again · same setup', changeSetup:'Change setup',
     confirmTitle:'Leave this game?', confirmBody:'Your current game will be lost and you’ll start a new setup.', leave:'Leave game', stay:'Stay'
   }
 };
-function L(){ return I18N[S.lang]; }
+function localizedStrings(){ return translations[state.lang]; }
 
 /* ============ STATE ============ */
-const params = new URLSearchParams(location.search);
-let lang0 = localStorage.getItem('hs_lang') || params.get('lang') || 'cs';
-if(lang0!=='cs' && lang0!=='en') lang0='cs';
-document.documentElement.setAttribute('lang', lang0);
-document.documentElement.removeAttribute('data-theme');
+const urlParams = new URLSearchParams(location.search);
+let initialLanguage = localStorage.getItem('podvodnik_lang') || urlParams.get('lang') || 'cs';
+if(initialLanguage!=='cs' && initialLanguage!=='en') initialLanguage='cs';
+document.documentElement.setAttribute('lang', initialLanguage);
 
-let S = {
-  lang: lang0,
+let state = {
+  lang: initialLanguage,
   screen:'setup',
   players:6,
   impostors:1,
-  impTouched:false,
+  impostorsTouched:false,
   category:'random',
   confirm:false,
   // round data
-  word:'', cat:'', impSet:new Set(), startPlayer:1,
+  word:'', categoryLabel:'', impostorSet:new Set(), startPlayer:1,
   dealIndex:0, peeking:false
 };
 
-function recommended(p){ return Math.min(Math.max(Math.round(p/5),1), p-2); }
-function maxImp(p){ return Math.max(1, p-2); }
+const MIN_PLAYERS = 3;
+const MAX_PLAYERS = 12;
+function recommendedImpostors(playerCount){ return Math.min(Math.max(Math.round(playerCount/5),1), playerCount-2); }
+function maxImpostors(playerCount){ return Math.max(1, playerCount-2); }
 
 /* ============ ROUND SETUP ============ */
 function deal(){
-  const lang = S.lang;
-  const catKey = S.category === 'random' ? CATKEYS[rand(CATKEYS.length)] : S.category;
-  const list = WORDS[lang][catKey];
-  S.cat = CATLABEL[lang][catKey];
-  S.word = list[rand(list.length)];
+  const language = state.lang;
+  const categoryKey = state.category === 'random' ? categoryKeys[randomInt(categoryKeys.length)] : state.category;
+  const wordList = wordBank[language][categoryKey];
+  state.categoryLabel = categoryLabels[language][categoryKey];
+  state.word = wordList[randomInt(wordList.length)];
   // pick impostor indices (1-based player numbers)
-  const ids = Array.from({length:S.players}, (_,i)=>i+1);
-  shuffle(ids);
-  S.impSet = new Set(ids.slice(0, S.impostors));
-  S.startPlayer = rand(S.players)+1;
-  S.dealIndex = 0; S.peeking = false;
-  S.screen = 'deal';
+  const playerNumbers = Array.from({length:state.players}, (_,index)=>index+1);
+  shuffle(playerNumbers);
+  state.impostorSet = new Set(playerNumbers.slice(0, state.impostors));
+  state.startPlayer = randomInt(state.players)+1;
+  state.dealIndex = 0; state.peeking = false;
+  state.screen = 'deal';
   render();
 }
-function rand(n){ return Math.floor(Math.random()*n); }
-function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=rand(i+1); [a[i],a[j]]=[a[j],a[i]];} }
+function randomInt(maxExclusive){ return Math.floor(Math.random()*maxExclusive); }
+function shuffle(array){ for(let index=array.length-1;index>0;index--){const swapIndex=randomInt(index+1); [array[index],array[swapIndex]]=[array[swapIndex],array[index]];} }
 
 /* ============ VIEWS ============ */
 function topbar(rightHtml){
@@ -308,225 +808,224 @@ function topbar(rightHtml){
   </div>`;
 }
 function modalHtml(){
-  const t = L();
+  const text = localizedStrings();
   return `<div class="modal-backdrop" data-action="leave-no">
     <div class="modal">
-      <h3>${t.confirmTitle}</h3>
-      <p>${t.confirmBody}</p>
-      <div class="btn-row" style="margin-top:4px">
-        <button class="btn" data-action="leave-yes">${t.leave}</button>
-        <button class="btn ghost" data-action="leave-no">${t.stay}</button>
+      <h3>${text.confirmTitle}</h3>
+      <p>${text.confirmBody}</p>
+      <div class="btn-row">
+        <button class="btn" data-action="leave-yes">${text.leave}</button>
+        <button class="btn ghost" data-action="leave-no">${text.stay}</button>
       </div>
     </div>
   </div>`;
 }
-function chip(text){ return `<div class="chip-mini">${text}</div>`; }
+function chip(content){ return `<div class="chip-mini">${content}</div>`; }
 function langSwitch(){
   return `<div class="lang-switch" role="group" aria-label="Language">
-    <button data-action="lang" data-lang="cs" class="${S.lang==='cs'?'on':''}">CZ</button>
-    <button data-action="lang" data-lang="en" class="${S.lang==='en'?'on':''}">EN</button>
+    <button data-action="lang" data-lang="cs" class="${state.lang==='cs'?'on':''}">CZ</button>
+    <button data-action="lang" data-lang="en" class="${state.lang==='en'?'on':''}">EN</button>
   </div>`;
 }
 
-function vSetup(){
-  const t = L();
-  const rec = recommended(S.players);
-  const isRec = S.impostors === rec;
-  const cats = ['random', ...CATKEYS].map(c=>`<button class="cat ${S.category===c?'on':''}" data-action="cat" data-cat="${c}">${CATLABEL[S.lang][c]}</button>`).join('');
+function viewSetup(){
+  const text = localizedStrings();
+  const recommendedImpostorCount = recommendedImpostors(state.players);
+  const isRecommended = state.impostors === recommendedImpostorCount;
+  const categoryButtons = ['random', ...categoryKeys].map(categoryKey=>`<button class="cat ${state.category===categoryKey?'on':''}" data-action="cat" data-cat="${categoryKey}">${categoryLabels[state.lang][categoryKey]}</button>`).join('');
   return `
   ${topbar(langSwitch())}
   <div class="screen">
     <div class="hero">
-      <h1>${t.heroTitle}</h1>
-      <p>${t.heroSub}</p>
+      <h1>${text.heroTitle}</h1>
+      <p>${text.heroSub}</p>
     </div>
 
     <div class="field">
       <div class="frow">
-        <div class="fmeta"><span class="v">${t.players}</span><span class="s">${t.playersSub}</span></div>
+        <div class="fmeta"><span class="v">${text.players}</span><span class="s">${text.playersSub}</span></div>
         <div class="stepper">
-          <button class="step-btn" data-action="players" data-d="-1" ${S.players<=3?'disabled':''}>−</button>
-          <span class="step-val">${S.players}</span>
-          <button class="step-btn" data-action="players" data-d="1" ${S.players>=12?'disabled':''}>+</button>
+          <button class="step-btn" data-action="players" data-delta="-1" ${state.players<=MIN_PLAYERS?'disabled':''}>−</button>
+          <span class="step-val">${state.players}</span>
+          <button class="step-btn" data-action="players" data-delta="1" ${state.players>=MAX_PLAYERS?'disabled':''}>+</button>
         </div>
       </div>
     </div>
 
     <div class="field">
       <div class="frow">
-        <div class="fmeta"><span class="v">${t.impostors}</span><span class="s">${t.impostorsSub}</span></div>
+        <div class="fmeta"><span class="v">${text.impostors}</span><span class="s">${text.impostorsSub}</span></div>
         <div class="stepper">
-          <button class="step-btn" data-action="imp" data-d="-1" ${S.impostors<=1?'disabled':''}>−</button>
-          <span class="step-val">${S.impostors}</span>
-          <button class="step-btn" data-action="imp" data-d="1" ${S.impostors>=maxImp(S.players)?'disabled':''}>+</button>
+          <button class="step-btn" data-action="imp" data-delta="-1" ${state.impostors<=1?'disabled':''}>−</button>
+          <span class="step-val">${state.impostors}</span>
+          <button class="step-btn" data-action="imp" data-delta="1" ${state.impostors>=maxImpostors(state.players)?'disabled':''}>+</button>
         </div>
       </div>
-      ${isRec
-        ? `<div class="rec-tag"><span>${t.rec(S.players)}</span></div>`
-        : `<div class="rec-tag muted"><span>${t.sug(rec, S.players)}</span></div>`}
+      ${isRecommended
+        ? `<div class="rec-tag"><span>${text.rec(state.players)}</span></div>`
+        : `<div class="rec-tag muted"><span>${text.sug(recommendedImpostorCount, state.players)}</span></div>`}
     </div>
 
     <div class="field">
-      <div class="fmeta" style="margin-bottom:12px"><span class="v">${t.topic}</span><span class="s">${t.topicSub}</span></div>
-      <div class="cats">${cats}</div>
+      <div class="fmeta field-heading"><span class="v">${text.topic}</span><span class="s">${text.topicSub}</span></div>
+      <div class="cats">${categoryButtons}</div>
     </div>
 
     <div class="btn-row">
-      <button class="btn lg" data-action="start">${t.deal}</button>
+      <button class="btn lg" data-action="start">${text.deal}</button>
     </div>
   </div>`;
 }
 
-function vDeal(){
-  const t = L();
-  const p = S.dealIndex + 1;
-  if(!S.peeking){
+function viewDeal(){
+  const text = localizedStrings();
+  const playerNumber = state.dealIndex + 1;
+  if(!state.peeking){
     return `
-    ${topbar(chip(t.cardOf(p, S.players)))}
+    ${topbar(chip(text.cardOf(playerNumber, state.players)))}
     <div class="screen">
       <div class="center">
         <div class="eye">
           <svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
         </div>
-        <div class="label">${t.passTo}</div>
-        <div class="pass-num">${t.player(p)}</div>
-        <div class="pass-sub">${t.passSub}</div>
+        <div class="label">${text.passTo}</div>
+        <div class="pass-num">${text.player(playerNumber)}</div>
+        <div class="pass-sub">${text.passSub}</div>
       </div>
       <div class="btn-row">
-        <button class="btn lg" data-action="reveal">${t.tapReveal}</button>
+        <button class="btn lg" data-action="reveal">${text.tapReveal}</button>
       </div>
     </div>`;
   }
-  const isImp = S.impSet.has(p);
-  let cardInner;
-  if(isImp){
-    cardInner = `
-      <span class="badge imp">${t.impBadge}</span>
-      <div class="imp-mark">${t.impMark}</div>
-      <div class="topic">${t.impTopic(S.cat)}</div>
-      <p class="hint">${t.impHint}</p>`;
+  const isImpostor = state.impostorSet.has(playerNumber);
+  let cardContent;
+  if(isImpostor){
+    cardContent = `
+      <span class="badge imp">${text.impBadge}</span>
+      <div class="imp-mark">${text.impMark}</div>
+      <div class="topic">${text.impTopic(state.categoryLabel)}</div>
+      <p class="hint">${text.impHint}</p>`;
   } else {
-    cardInner = `
-      <span class="badge crew">${t.crewBadge}</span>
-      <div class="role">${t.role}</div>
-      <div class="word">${S.word}</div>
-      <div class="topic">${t.crewTopic(S.cat)}</div>
-      <p class="hint">${t.crewHint}</p>`;
+    cardContent = `
+      <span class="badge crew">${text.crewBadge}</span>
+      <div class="role">${text.role}</div>
+      <div class="word">${state.word}</div>
+      <div class="topic">${text.crewTopic(state.categoryLabel)}</div>
+      <p class="hint">${text.crewHint}</p>`;
   }
-  const pips = Array.from({length:S.players}, (_,i)=>{
-    const cls = i < S.dealIndex ? 'done' : (i===S.dealIndex ? 'now' : '');
-    return `<span class="pip ${cls}"></span>`;
+  const progressPips = Array.from({length:state.players}, (_,index)=>{
+    const pipClass = index < state.dealIndex ? 'done' : (index===state.dealIndex ? 'now' : '');
+    return `<span class="pip ${pipClass}"></span>`;
   }).join('');
-  const last = S.dealIndex === S.players - 1;
+  const isLastPlayer = state.dealIndex === state.players - 1;
   return `
-  ${topbar(chip(t.cardOf(p, S.players)))}
+  ${topbar(chip(text.cardOf(playerNumber, state.players)))}
   <div class="screen">
     <div class="deal-stage">
-      <div class="card">${cardInner}</div>
-      <div class="progress">${pips}</div>
+      <div class="card">${cardContent}</div>
+      <div class="progress">${progressPips}</div>
     </div>
     <div class="btn-row">
-      <button class="btn lg" data-action="next">${last ? t.startGame : t.hidePass}</button>
+      <button class="btn lg" data-action="next">${isLastPlayer ? text.startGame : text.hidePass}</button>
     </div>
   </div>`;
 }
 
-function vPlay(){
-  const t = L();
+function viewPlay(){
+  const text = localizedStrings();
   return `
-  ${topbar(chip(t.roundInPlay))}
+  ${topbar(chip(text.roundInPlay))}
   <div class="screen">
-    <div class="hero" style="margin-bottom:20px">
-      <div class="label" style="margin-bottom:10px">${t.cardsDealt}</div>
-      <h1 style="font-size:40px">${t.playTitle}</h1>
+    <div class="hero play-intro">
+      <div class="label">${text.cardsDealt}</div>
+      <h1>${text.playTitle}</h1>
     </div>
     <div class="play-card">
-      <div class="label">${t.startsRound}</div>
-      <div class="start-name">${t.player(S.startPlayer)}</div>
-      <div class="topic" style="color:var(--muted); font-size:13px; margin-top:6px">${t.clockwise}</div>
+      <div class="label">${text.startsRound}</div>
+      <div class="start-name">${text.player(state.startPlayer)}</div>
+      <div class="clockwise">${text.clockwise}</div>
     </div>
     <div class="rules">
-      <div class="rule"><div class="n">1</div><p>${t.rule1}</p></div>
-      <div class="rule"><div class="n">2</div><p>${t.rule2}</p></div>
-      <div class="rule"><div class="n">3</div><p>${t.rule3(S.impostors)}</p></div>
+      <div class="rule"><div class="n">1</div><p>${text.rule1}</p></div>
+      <div class="rule"><div class="n">2</div><p>${text.rule2}</p></div>
+      <div class="rule"><div class="n">3</div><p>${text.rule3(state.impostors)}</p></div>
     </div>
     <div class="btn-row">
-      <button class="btn lg" data-action="result">${t.revealBtn}</button>
+      <button class="btn lg" data-action="result">${text.revealBtn}</button>
     </div>
   </div>`;
 }
 
-function vResult(){
-  const t = L();
-  const who = [...S.impSet].sort((a,b)=>a-b).map(i=>`<span class="p">${t.player(i)}</span>`).join('');
+function viewResult(){
+  const text = localizedStrings();
+  const impostorTags = [...state.impostorSet].sort((first,second)=>first-second).map(playerNumber=>`<span class="p">${text.player(playerNumber)}</span>`).join('');
   return `
-  ${topbar(chip(t.revealChip))}
+  ${topbar(chip(text.revealChip))}
   <div class="screen">
     <div class="spacer"></div>
     <div class="result-word">
-      <div class="label">${t.secretWordWas}</div>
-      <div class="word" style="margin-top:8px">${S.word}</div>
-      <div class="topic" style="margin-top:8px">${t.topicDot(S.cat)}</div>
+      <div class="label">${text.secretWordWas}</div>
+      <div class="word">${state.word}</div>
+      <div class="topic">${text.topicDot(state.categoryLabel)}</div>
     </div>
     <div class="imp-list">
-      <div class="label">${t.impWas(S.impSet.size)}</div>
-      <div class="who">${who}</div>
+      <div class="label">${text.impWas(state.impostorSet.size)}</div>
+      <div class="who">${impostorTags}</div>
     </div>
     <div class="spacer"></div>
     <div class="btn-row">
-      <button class="btn lg" data-action="again">${t.playAgain}</button>
-      <button class="btn ghost" data-action="home">${t.changeSetup}</button>
+      <button class="btn lg" data-action="again">${text.playAgain}</button>
+      <button class="btn ghost" data-action="home">${text.changeSetup}</button>
     </div>
   </div>`;
 }
 
 function fitWord(){
-  document.querySelectorAll('#app .word').forEach(el=>{
-    let size = parseFloat(getComputedStyle(el).fontSize);
-    let guard = 0;
-    while(el.scrollWidth > el.clientWidth + 0.5 && size > 18 && guard < 80){
-      size -= 1; el.style.fontSize = size + 'px'; guard++;
+  document.querySelectorAll('#app .word').forEach(wordElement=>{
+    let fontSize = parseFloat(getComputedStyle(wordElement).fontSize);
+    let guardCounter = 0;
+    while(wordElement.scrollWidth > wordElement.clientWidth + 0.5 && fontSize > 18 && guardCounter < 80){
+      fontSize -= 1; wordElement.style.fontSize = fontSize + 'px'; guardCounter++;
     }
   });
 }
 
 function render(){
-  const app = document.getElementById('app');
-  const v = {setup:vSetup, deal:vDeal, play:vPlay, result:vResult}[S.screen];
-  app.innerHTML = v() + (S.confirm ? modalHtml() : '');
-  app.scrollTop = 0;
+  const appRoot = document.getElementById('app');
+  const view = {setup:viewSetup, deal:viewDeal, play:viewPlay, result:viewResult}[state.screen];
+  appRoot.innerHTML = view() + (state.confirm ? modalHtml() : '');
+  appRoot.scrollTop = 0;
   fitWord();
 }
 
 /* ============ EVENTS ============ */
-document.getElementById('app').addEventListener('click', e=>{
-  const el = e.target.closest('[data-action]');
-  if(!el) return;
-  const a = el.dataset.action;
+document.getElementById('app').addEventListener('click', event=>{
+  const actionElement = event.target.closest('[data-action]');
+  if(!actionElement) return;
+  const action = actionElement.dataset.action;
   // ignore clicks inside the modal body that bubble to the backdrop
-  if(a==='leave-no' && el.classList.contains('modal-backdrop') && e.target!==el) return;
-  if(a==='lang'){ S.lang = el.dataset.lang; localStorage.setItem('hs_lang', S.lang); document.documentElement.setAttribute('lang', S.lang); }
-  else if(a==='wordmark'){ if(S.screen!=='setup'){ S.confirm = true; } }
-  else if(a==='leave-yes'){ S.confirm = false; S.screen = 'setup'; }
-  else if(a==='leave-no'){ S.confirm = false; }
-  else if(a==='players'){
-    const d = +el.dataset.d;
-    S.players = Math.min(12, Math.max(3, S.players + d));
-    if(!S.impTouched) S.impostors = recommended(S.players);
-    S.impostors = Math.min(S.impostors, maxImp(S.players));
+  if(action==='leave-no' && actionElement.classList.contains('modal-backdrop') && event.target!==actionElement) return;
+  if(action==='lang'){ state.lang = actionElement.dataset.lang; localStorage.setItem('podvodnik_lang', state.lang); document.documentElement.setAttribute('lang', state.lang); }
+  else if(action==='wordmark'){ if(state.screen!=='setup'){ state.confirm = true; } }
+  else if(action==='leave-yes'){ state.confirm = false; state.screen = 'setup'; }
+  else if(action==='leave-no'){ state.confirm = false; }
+  else if(action==='players'){
+    const delta = +actionElement.dataset.delta;
+    state.players = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, state.players + delta));
+    if(!state.impostorsTouched) state.impostors = recommendedImpostors(state.players);
+    state.impostors = Math.min(state.impostors, maxImpostors(state.players));
   }
-  else if(a==='imp'){ S.impTouched=true; S.impostors = Math.min(maxImp(S.players), Math.max(1, S.impostors + (+el.dataset.d))); }
-  else if(a==='useRec'){ S.impTouched=false; S.impostors = recommended(S.players); }
-  else if(a==='cat'){ S.category = el.dataset.cat; }
-  else if(a==='start'){ deal(); return; }
-  else if(a==='reveal'){ S.peeking=true; }
-  else if(a==='next'){
-    if(S.dealIndex === S.players-1){ S.screen='play'; }
-    else { S.dealIndex++; S.peeking=false; }
+  else if(action==='imp'){ state.impostorsTouched=true; state.impostors = Math.min(maxImpostors(state.players), Math.max(1, state.impostors + (+actionElement.dataset.delta))); }
+  else if(action==='cat'){ state.category = actionElement.dataset.cat; }
+  else if(action==='start'){ deal(); return; }
+  else if(action==='reveal'){ state.peeking=true; }
+  else if(action==='next'){
+    if(state.dealIndex === state.players-1){ state.screen='play'; }
+    else { state.dealIndex++; state.peeking=false; }
   }
-  else if(a==='result'){ S.screen='result'; }
-  else if(a==='again'){ deal(); return; }
-  else if(a==='home'){ S.screen='setup'; }
+  else if(action==='result'){ state.screen='result'; }
+  else if(action==='again'){ deal(); return; }
+  else if(action==='home'){ state.screen='setup'; }
   render();
 });
 
@@ -534,6 +1033,3 @@ render();
 </script>
 </body>
 </html>
-
-<style id="__om-edit-overrides">
-</style>
