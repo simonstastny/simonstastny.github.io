@@ -11,15 +11,12 @@
   :root {
     --paper:      #F2ECE0;
     --paper-2:    #EAE2D2;
-    --paper-deep: #E3D9C6;
     --ink:        #1B1916;
     --ink-soft:   #5B544A;
     --ink-faint:  #8C8475;
     --line:       rgba(27, 25, 22, 0.14);
     --line-soft:  rgba(27, 25, 22, 0.08);
     --accent:     #C04A24;
-    --accent-deep:#9B3717;
-    --sage:       #6B7256;
 
     --serif: "Instrument Serif", Georgia, serif;
     --sans:  "Hanken Grotesk", system-ui, sans-serif;
@@ -228,13 +225,12 @@
   .work-list { display: flex; flex-direction: column; }
   .proj {
     display: grid;
-    grid-template-columns: 56px 1fr auto 132px;
+    grid-template-columns: 56px 1fr auto;
     gap: clamp(14px, 3vw, 40px);
     align-items: center;
     padding: clamp(20px, 3vh, 30px) 8px;
     border-top: 1px solid var(--line);
     position: relative;
-    transition: padding-left .45s cubic-bezier(.2,.7,.2,1);
   }
   .proj:last-child { border-bottom: 1px solid var(--line); }
   .proj::before {
@@ -247,9 +243,7 @@
     border-radius: 3px;
   }
   @media (hover: hover) {
-    .proj:hover { padding-left: 24px; }
     .proj:hover::before { opacity: 1; }
-    .proj:hover .proj-thumb image-slot { transform: scale(1.04); }
     .proj:hover .proj-title { color: var(--accent); }
   }
   .proj-idx { font-family: var(--mono); font-size: 13px; color: var(--ink-faint); align-self: start; padding-top: 6px; }
@@ -280,21 +274,10 @@
     line-height: 1.7;
     white-space: nowrap;
   }
-  .proj-thumb {
-    width: 132px;
-    aspect-ratio: 4 / 3;
-    overflow: hidden;
-    border-radius: 3px;
-  }
-  .proj-thumb image-slot {
-    width: 100%; height: 100%;
-    display: block;
-    transition: transform .55s cubic-bezier(.2,.7,.2,1);
-  }
   @media (max-width: 760px) {
     .proj {
       grid-template-columns: 40px 1fr;
-      grid-template-areas: "idx title" "thumb meta";
+      grid-template-areas: "idx title" ". meta";
       align-items: start;
       gap: 10px 18px;
       row-gap: 18px;
@@ -302,48 +285,6 @@
     .proj-idx { grid-area: idx; padding-top: 8px; }
     .proj-mainwrap { grid-area: title; }
     .proj-meta { grid-area: meta; text-align: left; align-self: center; }
-    .proj-thumb { grid-area: thumb; width: 96px; }
-  }
-
-  /* ---------- writing ---------- */
-  .writing-list { display: flex; flex-direction: column; }
-  .post {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 20px;
-    align-items: baseline;
-    padding: 22px 8px;
-    border-top: 1px solid var(--line);
-    transition: padding-left .4s cubic-bezier(.2,.7,.2,1), background .35s;
-  }
-  .post:last-child { border-bottom: 1px solid var(--line); }
-  @media (hover: hover) {
-    .post:hover { padding-left: 18px; background: var(--paper-2); }
-    .post:hover .post-title { color: var(--accent); }
-    .post:hover .post-arrow { transform: translate(3px,-3px); opacity: 1; }
-  }
-  .post-title {
-    font-family: var(--serif);
-    font-size: clamp(22px, 2.6vw, 30px);
-    line-height: 1.1;
-    transition: color .3s;
-  }
-  .post-title .post-arrow {
-    display: inline-block;
-    font-family: var(--sans);
-    font-size: 0.6em;
-    margin-left: 8px;
-    opacity: .4;
-    transition: transform .35s, opacity .35s;
-  }
-  .post-blurb { font-size: 15px; color: var(--ink-soft); margin-top: 7px; max-width: 56ch; line-height: 1.5; }
-  .post-meta {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--ink-faint);
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-    text-align: right;
   }
 
   /* ---------- contact ---------- */
@@ -382,23 +323,6 @@
   .mail-btn .arr { transition: transform .35s cubic-bezier(.2,.7,.2,1); }
   .mail-btn:hover { background: var(--accent); transform: translateY(-2px); }
   .mail-btn:hover .arr { transform: translateX(5px); }
-  .socials { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
-  .socials a {
-    font-family: var(--mono);
-    font-size: 13px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    display: inline-flex;
-    gap: 10px;
-    align-items: baseline;
-    white-space: nowrap;
-    line-height: 1.2;
-    transition: color .3s;
-  }
-  .socials a .num { color: var(--ink-faint); }
-  .socials a:hover { color: var(--ink); }
-  .socials a:hover .lbl { border-bottom: 1px solid var(--ink); }
 
   /* ---------- footer ---------- */
   footer {
@@ -440,7 +364,7 @@
 
   <nav id="nav">
     <div class="nav-inner">
-      <a href="#top" class="brand" style="font-family: &quot;Abril Fatface&quot;">Šimon Šťastný.</a>
+      <a href="#top" class="brand" style="font-family: &quot;Abril Fatface&quot;">Šimon Šťastný<span style="color: var(--accent);">.</span></a>
       <div class="nav-links">
         <a href="#about"><span class="idx">01</span>About</a>
         <a href="#work"><span class="idx">02</span>Work</a>
@@ -478,7 +402,9 @@
               I&rsquo;m an engineer turned engineering manager who loves finishing things.
             </p>
             <p class="muted" style="font-family: &quot;Hanken Grotesk&quot;">
-              Launching my first personal website around 2003 (while still in elementary school), then neglecting it a bit for the next twenty years or so due to school, university, few years spent abroad, focusing on career, family. Now, equipped with AI, I am once again able to turn my ideas into working things.
+              Launching my first personal website around 2003 (while still in elementary school), then neglecting it a bit for the next twenty years or so due to school, university, few years spent abroad, focusing on career, family.
+            </p>
+            <p class="muted" style="font-family: &quot;Hanken Grotesk&quot;">Now, equipped with AI, I am once again able to turn my ideas into working things - a personal website, games, useful scripts and browser extensions to boost productivity at my daily job.
             </p>
             <div class="about-detail">
               <div>
@@ -486,10 +412,10 @@
                 <span class="v">Senior Engineering Manager at FEG</span>
               </div>
               <div>
-                <span class="label k">Previously</span>
+                <span class="label k">Elsewhere</span>
                 <span class="v"><a href="https://www.linkedin.com/in/simonstastny" target="_blank" rel="noopener noreferrer">Read the full résumé →</a></span>
               </div>
-                            <div>
+              <div>
                 <span class="label k">Tools</span>
                 <span class="v">Java, JavaScript and a great deal of vibe-coding.</span>
               </div>
@@ -515,7 +441,6 @@
               <span class="proj-sub">A vibe-coded Czech-language implementation of Impostor — social deduction game built from scratch.</span>
             </span>
             <span class="proj-meta">Game<br />2026</span>
-            <span class="proj-thumb"><image-slot id="work1" shape="rounded" radius="3" placeholder="4:3"></image-slot></span>
           </a>
 
         </div>
@@ -543,7 +468,6 @@
     </div>
   </footer>
 
-  <script src="image-slot.js"></script>
   <script>
     // nav background on scroll
     const nav = document.getElementById('nav');
