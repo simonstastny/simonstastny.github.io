@@ -660,29 +660,9 @@ h1,h2,h3{
 
 <script>
 /* ============ WORD BANK ============ */
-const categoryKeys = ['food','animals','places','objects','sports','movies'];
-const categoryLabels = {
-  cs: { random:'Náhodně', food:'Jídlo', animals:'Zvířata', places:'Místa', objects:'Předměty', sports:'Sport', movies:'Filmy' },
-  en: { random:'Random', food:'Food', animals:'Animals', places:'Places', objects:'Objects', sports:'Sports', movies:'Movies' }
-};
-const wordBank = {
-  cs: {
-    food: ["Pizza","Avokádo","Palačinky","Sushi","Popcorn","Špagety","Meloun","Kobliha","Tacos","Okurka","Cheeseburger","Zmrzlina"],
-    animals: ["Tučňák","Chobotnice","Slon","Ježek","Delfín","Klokan","Plameňák","Krokodýl","Veverka","Sova","Žirafa","Medúza"],
-    places: ["Letiště","Knihovna","Pláž","Sopka","Hrad","Metro","Nemocnice","Kasino","Maják","Poušť","Akvárium","Stadion"],
-    objects: ["Deštník","Toustovač","Dalekohled","Sešívačka","Batoh","Svíčka","Zrcadlo","Vysavač","Kompas","Sluchátka","Peněženka","Žebřík"],
-    sports: ["Bowling","Surfování","Box","Lukostřelba","Lyžování","Tenis","Karate","Maraton","Hokej","Vybíjená","Lezení","Golf"],
-    movies: ["Titanic","Čelisti","Ledové království","Matrix","Jurský park","Příběh hraček","Avatar","Shrek","Počátek","Vzhůru do oblak","Gladiátor","Rocky"]
-  },
-  en: {
-    food: ["Pizza","Avocado","Pancakes","Sushi","Popcorn","Spaghetti","Watermelon","Doughnut","Tacos","Pickle","Cheeseburger","Ice Cream"],
-    animals: ["Penguin","Octopus","Elephant","Hedgehog","Dolphin","Kangaroo","Flamingo","Crocodile","Squirrel","Owl","Giraffe","Jellyfish"],
-    places: ["Airport","Library","Beach","Volcano","Castle","Subway","Hospital","Casino","Lighthouse","Desert","Aquarium","Stadium"],
-    objects: ["Umbrella","Toaster","Telescope","Stapler","Backpack","Candle","Mirror","Vacuum","Compass","Headphones","Wallet","Ladder"],
-    sports: ["Bowling","Surfing","Boxing","Archery","Skiing","Tennis","Karate","Marathon","Hockey","Dodgeball","Climbing","Golf"],
-    movies: ["Titanic","Jaws","Frozen","The Matrix","Jurassic Park","Toy Story","Avatar","Shrek","Inception","Up","Gladiator","Rocky"]
-  }
-};
+// words.json: [ { lang, topics: [ { name, words } ] } ] — loaded before the first render (see bottom of script).
+// Topics are parallel across languages, so a topic is identified by its index.
+let topicsByLang = {};
 
 /* ============ I18N ============ */
 // Czech accusative form after "pro": 2–4 → "hráče", 5+ → "hráčů"
@@ -695,7 +675,7 @@ const translations = {
     impostors:'Podvodníci', impostorsSub:'Neznají slovo',
     rec:playerCount=>`✓ Doporučeno pro ${playerCount} ${czechPlayerNoun(playerCount)}`,
     sug:(recommendedCount,playerCount)=>`Návrh: ${recommendedCount} pro ${playerCount} ${czechPlayerNoun(playerCount)}`,
-    topic:'Téma', topicSub:'Podvodníci se dozvědí tuto kategorii',
+    topic:'Téma', topicSub:'Podvodníci se dozvědí tuto kategorii', randomTopic:'Náhodně',
     deal:'Rozdat karty →',
     cardOf:(cardNumber,totalCards)=>`Karta ${cardNumber} z ${totalCards}`,
     passTo:'Předejte telefon', player:playerNumber=>`Hráč ${playerNumber}`,
@@ -728,7 +708,7 @@ const translations = {
     impostors:'Impostors', impostorsSub:"Don't know the word",
     rec:playerCount=>`✓ Recommended for ${playerCount} player${playerCount===1?'':'s'}`,
     sug:(recommendedCount,playerCount)=>`Suggested: ${recommendedCount} for ${playerCount} player${playerCount===1?'':'s'}`,
-    topic:'Topic', topicSub:'Impostors are told this category',
+    topic:'Topic', topicSub:'Impostors are told this category', randomTopic:'Random',
     deal:'Deal cards →',
     cardOf:(cardNumber,totalCards)=>`Card ${cardNumber} of ${totalCards}`,
     passTo:'Pass the phone to', player:playerNumber=>`Player ${playerNumber}`,
@@ -783,11 +763,11 @@ function maxImpostors(playerCount){ return Math.max(1, playerCount-2); }
 
 /* ============ ROUND SETUP ============ */
 function deal(){
-  const language = state.lang;
-  const categoryKey = state.category === 'random' ? categoryKeys[randomInt(categoryKeys.length)] : state.category;
-  const wordList = wordBank[language][categoryKey];
-  state.categoryLabel = categoryLabels[language][categoryKey];
-  state.word = wordList[randomInt(wordList.length)];
+  const topics = topicsByLang[state.lang];
+  const topicIndex = state.category === 'random' ? randomInt(topics.length) : +state.category;
+  const topic = topics[topicIndex];
+  state.categoryLabel = topic.name;
+  state.word = topic.words[randomInt(topic.words.length)];
   // pick impostor indices (1-based player numbers)
   const playerNumbers = Array.from({length:state.players}, (_,index)=>index+1);
   shuffle(playerNumbers);
@@ -832,7 +812,8 @@ function viewSetup(){
   const text = localizedStrings();
   const recommendedImpostorCount = recommendedImpostors(state.players);
   const isRecommended = state.impostors === recommendedImpostorCount;
-  const categoryButtons = ['random', ...categoryKeys].map(categoryKey=>`<button class="cat ${state.category===categoryKey?'on':''}" data-action="cat" data-cat="${categoryKey}">${categoryLabels[state.lang][categoryKey]}</button>`).join('');
+  const topicChoices = [['random', text.randomTopic], ...topicsByLang[state.lang].map((topic,index)=>[String(index), topic.name])];
+  const categoryButtons = topicChoices.map(([value,label])=>`<button class="cat ${state.category===value?'on':''}" data-action="cat" data-cat="${value}">${label}</button>`).join('');
   return `
   ${topbar(langSwitch())}
   <div class="screen">
@@ -1029,7 +1010,17 @@ document.getElementById('app').addEventListener('click', event=>{
   render();
 });
 
-render();
+/* ============ BOOTSTRAP ============ */
+// Load the word bank, then render the first screen.
+fetch('words.json')
+  .then(response=>{ if(!response.ok) throw new Error(`words.json ${response.status}`); return response.json(); })
+  .then(data=>{
+    topicsByLang = Object.fromEntries(data.map(entry=>[entry.lang, entry.topics]));
+    render();
+  })
+  .catch(error=>{
+    document.getElementById('app').innerHTML = `<p style="padding:40px;color:var(--danger)">Failed to load word bank: ${error.message}</p>`;
+  });
 </script>
 </body>
 </html>
