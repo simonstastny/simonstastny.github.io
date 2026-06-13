@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;600;700;800&amp;family=Oswald:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #1A1511; -webkit-tap-highlight-color: transparent; }
+    input { font-family: inherit; }
+    @keyframes stampIn { from { transform: scale(1.5) rotate(-3deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
+  </style>
+</helmet>
+
+<div style="min-height: 100dvh; background: #1A1511; display: flex; justify-content: center;">
+<div style="width: 100%; max-width: 430px; min-height: 100dvh; background: #F2E6CE; display: flex; flex-direction: column; font-family: 'Oswald', sans-serif; color: #26201A; position: relative;">
+
+  <!-- ============ SETUP ============ -->
+  <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="Setup" style="flex: 1; display: flex; flex-direction: column; padding: 28px 26px 28px; gap: 26px;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+          <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.3em; color: #B4543B; padding-top: 8px;">{{ t.setupKicker }}</div>
+          <div style="display: flex; gap: 10px; flex: none; align-items: stretch;">
+            <div onClick="{{ openRules }}" style="width: 40px; border: 3px solid #26201A; box-shadow: 3px 3px 0 #26201A; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; cursor: pointer; user-select: none; background: #F2E6CE; color: #26201A;">?</div>
+            <div style="display: flex; border: 3px solid #26201A; box-shadow: 3px 3px 0 #26201A;">
+              <div onClick="{{ setEn }}" style="padding: 7px 13px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; user-select: none; background: {{ enBg }}; color: {{ enFg }}; display: flex; align-items: center;">EN</div>
+              <div onClick="{{ setCs }}" style="padding: 7px 13px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; cursor: pointer; user-select: none; background: {{ csBg }}; color: {{ csFg }}; border-left: 3px solid #26201A; display: flex; align-items: center;">CZ</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 6px">{{ t.titleA }}<br>{{ t.titleB }}</div>
+        <div style="margin-top: 10px; font-size: 15px; font-weight: 400; color: #6B5A43; line-height: 1.5;">{{ t.setupIntro }}</div>
+      </div>
+
+      <div style="border: 3px solid #26201A; background: #EFE0C2; box-shadow: 6px 6px 0 #26201A; padding: 18px 20px;">
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.playersAtTable }}</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+          <div onClick="{{ dec }}" style="width: 58px; height: 58px; border: 3px solid #26201A; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600; cursor: pointer; user-select: none; background: #F2E6CE;">−</div>
+          <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 72px; line-height: 1; transform: translateY(-7px);">{{ count }}</div>
+          <div onClick="{{ inc }}" style="width: 58px; height: 58px; border: 3px solid #26201A; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600; cursor: pointer; user-select: none; background: #F2E6CE;">+</div>
+        </div>
+        <div style="text-align: center; margin-top: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #DD5126;">{{ roleSummary }}</div>
+      </div>
+
+      <div>
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B; margin-bottom: 10px;">{{ t.nameThePlayers }}</div>
+        <div style="display: flex; gap: 10px;">
+          <div onClick="{{ namesOff }}" style="flex: 1; text-align: center; padding: 13px 0; border: 3px solid #26201A; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none; background: {{ noBg }}; color: {{ noFg }};">{{ t.noNumbers }}</div>
+          <div onClick="{{ namesOn }}" style="flex: 1; text-align: center; padding: 13px 0; border: 3px solid #26201A; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none; background: {{ yesBg }}; color: {{ yesFg }};">{{ t.yesNames }}</div>
+        </div>
+        <sc-if value="{{ useNames }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: 14px; font-size: 15px; color: #6B5A43">{{ t.seatingNote }}</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+            <sc-for list="{{ nameInputs }}" as="inp" hint-placeholder-count="6">
+              <input value="{{ inp.value }}" onChange="{{ inp.onChange }}" placeholder="{{ inp.label }}" style="border: 3px solid #26201A; background: #EFE0C2; padding: 12px 12px; font-size: 15px; font-weight: 500; color: #26201A; outline: none; min-width: 0; border-radius: 0;">
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="margin-top: auto;">
+        <div onClick="{{ startGame }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 18px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; user-select: none; box-shadow: 5px 5px 0 rgba(38,32,26,0.25);">{{ t.dealRoles }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ DEAL GATE ============ -->
+  <sc-if value="{{ isDealGate }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Deal Gate" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 32px 28px;">
+      <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">
+        <div>{{ t.dealingRoles }}</div>
+        <div>{{ dealProgress }}</div>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px;">
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #9C8E76;">{{ t.passPhoneTo }}</div>
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 1; color: #F2E6CE">{{ dealName }}</div>
+        <div style="font-size: 15px; font-weight: 400; color: #D8CBAE; max-width: 280px; line-height: 1.5;">{{ t.dealGateSub }}</div>
+      </div>
+      <div onClick="{{ showRole }}" style="border: 3px solid #E8A03C; color: #E8A03C; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ dealBtnLabel }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ============ DEAL REVEAL ============ -->
+  <sc-if value="{{ isDealReveal }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Role Reveal" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 26px;">
+      <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; letter-spacing: 0.24em;">
+        <div style="color: #9C8E76;">{{ dealNameUp }}</div>
+        <div style="color: #DD5126;">{{ t.eyesOnly }}</div>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px;">
+        <div style="border: 4px solid #F2E6CE; background: #EFE0C2; color: #26201A; box-shadow: 8px 8px 0 rgba(0,0,0,0.45); animation: stampIn 0.35s ease-out;">
+          <div style="background: {{ roleBandBg }}; color: #F2E6CE; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.32em; border-bottom: 4px solid #26201A;">{{ t.secretRole }}</div>
+          <div style="padding: 28px 20px 22px; text-align: center;">
+            <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; color: {{ roleColor }}; text-shadow: 3px 3px 0 {{ roleShadow }}">{{ roleWord }}</div>
+            <div style="margin-top: 12px; font-size: 13px; font-weight: 500; letter-spacing: 0.14em; color: #6B5A43;">{{ partyLine }}</div>
+          </div>
+          <sc-if value="{{ hasIntel }}" hint-placeholder-val="{{ false }}">
+            <div style="border-top: 2px dashed #26201A; padding: 14px 20px 18px; text-align: center;">
+              <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.22em; color: #B4543B; margin-bottom: 8px;">{{ intelTitle }}</div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <sc-for list="{{ intelLines }}" as="line" hint-placeholder-count="2">
+                  <div style="font-size: 15px; font-weight: 600; line-height: 1.35">{{ line.text }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="text-align: center; font-size: 13px; font-weight: 500; letter-spacing: 0.1em; color: #9C8E76;">{{ memoLine }}</div>
+      </div>
+      <div onClick="{{ hideAndPass }}" style="background: #F2E6CE; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.hidePass }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ============ NIGHT PHASE ============ -->
+  <sc-if value="{{ isNight }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Night Phase" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.publicReadAloud }}</div>
+      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ t.nightTitle }}</div>
+      <div style="margin-top: 8px; font-size: 15px; color: #6B5A43; line-height: 1.5;">{{ t.nightIntro }}</div>
+      <div style="margin-top: 22px; display: flex; flex-direction: column; gap: 14px;">
+        <sc-for list="{{ nightSteps }}" as="step" hint-placeholder-count="4">
+          <div style="display: flex; gap: 14px; align-items: flex-start;">
+            <div style="width: 34px; height: 34px; flex: none; background: #26201A; color: #F2E6CE; display: flex; align-items: center; justify-content: center; font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 20px;">{{ step.n }}</div>
+            <div style="font-size: 15px; font-weight: 500; line-height: 1.45; padding-top: 4px">{{ step.text }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="margin-top: auto; padding-top: 24px;">
+        <div onClick="{{ beginGame }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 18px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; user-select: none; box-shadow: 5px 5px 0 rgba(38,32,26,0.25);">{{ t.toFirstElection }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ DASHBOARD ============ -->
+  <sc-if value="{{ isDash }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Dashboard" style="flex: 1; display: flex; flex-direction: column;">
+      <div style="background: #26201A; color: #F2E6CE; padding: 16px 22px 13px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 30px; line-height: 1;">{{ roundTitle }}</div>
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.22em; color: #E8A03C;">{{ t.election }}</div>
+          <div onClick="{{ openRules }}" style="width: 34px; height: 34px; border: 2px solid #E8A03C; color: #E8A03C; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; cursor: pointer; user-select: none">?</div>
+        </div>
+      </div>
+
+      <div style="padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 16px; flex: 1;">
+        <div style="border: 3px solid #26201A; background: #EFE0C2; padding: 12px 16px; box-shadow: 5px 5px 0 #26201A;">
+          <div style="display: flex; justify-content: space-between; align-items: stretch; gap: 12px;">
+            <div>
+              <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B">{{ t.president }}</div>
+              <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 30px; line-height: 1.05;">{{ presName }}</div>
+            </div>
+            <div style="text-align: right; max-width: 55%; display: flex; flex-direction: column; justify-content: space-between;">
+              <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.14em; color: #6B5A43">{{ t.notEligible }}</div>
+              <div style="font-size: 15px; font-weight: 600; line-height: 1.3;">{{ ineligibleText }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px;">
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #DD5126;">{{ t.fascistPolicies }}</div>
+            <div style="font-size: 13px; font-weight: 600;">{{ fas }} / 6</div>
+          </div>
+          <div style="display: flex; gap: 5px;">
+            <sc-for list="{{ fSlots }}" as="slot" hint-placeholder-count="6">
+              <div style="flex: 1; height: 58px; background: {{ slot.bg }}; border: {{ slot.bd }}; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.3; color: {{ slot.lc }}; text-align: center; padding: 2px; box-sizing: border-box;"><div style="width: {{ slot.symSize }}; height: {{ slot.symSize }}; background: {{ slot.symBg }}; border-radius: {{ slot.symBR }}; transform: {{ slot.symTr }}; display: {{ slot.symShow }};"></div>{{ slot.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px;">
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #46688B;">{{ t.liberalPolicies }}</div>
+            <div style="font-size: 13px; font-weight: 600;">{{ lib }} / 5</div>
+          </div>
+          <div style="display: flex; gap: 5px;">
+            <sc-for list="{{ lSlots }}" as="slot" hint-placeholder-count="5">
+              <div style="flex: 1; height: 58px; background: {{ slot.bg }}; border: {{ slot.bd }}; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; letter-spacing: 0.04em; color: {{ slot.lc }};"><div style="width: {{ slot.symSize }}; height: {{ slot.symSize }}; background: {{ slot.symBg }}; border-radius: {{ slot.symBR }}; transform: {{ slot.symTr }}; display: {{ slot.symShow }};"></div>{{ slot.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #6B5A43; margin-bottom: 6px;">{{ t.electionTracker }}</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <sc-for list="{{ dots }}" as="dot" hint-placeholder-count="3">
+                <div style="width: 18px; height: 18px; border-radius: 50%; background: {{ dot.bg }}; border: 3px solid #26201A;"></div>
+              </sc-for>
+              <div style="font-size: 11px; font-weight: 600; color: {{ trackerNoteColor }}; letter-spacing: 0.06em; margin-left: 4px;">{{ trackerNote }}</div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #6B5A43; margin-bottom: 6px;">{{ t.deckWord }}</div>
+            <div style="font-size: 11px; font-weight: 600; line-height: 1.5;">{{ deckLine1 }}<br>{{ deckLine2 }}</div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; color: #6B5A43; margin-bottom: 7px;">{{ t.theTable }}</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+            <sc-for list="{{ chips }}" as="chip" hint-placeholder-count="7">
+              <div style="border: {{ chip.bd }}; background: {{ chip.bg }}; color: {{ chip.fg }}; padding: 5px 11px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-decoration: {{ chip.deco }}; opacity: {{ chip.op }};">{{ chip.name }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 6px;">
+          <div style="text-align: center; font-size: 13px; font-weight: 500; color: #6B5A43; letter-spacing: 0.05em;">{{ dashInstr }}</div>
+          <div style="display: flex; gap: 10px;">
+            <div onClick="{{ votePassed }}" style="flex: 1; background: #26201A; color: #F2E6CE; text-align: center; padding: 16px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.votePassed }}</div>
+            <div onClick="{{ voteFailed }}" style="flex: 1; background: #F2E6CE; border: 3px solid #26201A; color: #26201A; text-align: center; padding: 13px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.voteFailed }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ CHANCELLOR PICK ============ -->
+  <sc-if value="{{ isChanPick }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Chancellor Pick" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.govElected }}</div>
+      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px">{{ t.chanPickA }}<br>{{ t.chanPickB }}</div>
+      <div style="margin-top: 10px; font-size: 15px; color: #6B5A43; line-height: 1.5;">{{ chanPickSub }}</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px;">
+        <sc-for list="{{ chanCandidates }}" as="cand" hint-placeholder-count="4">
+          <div onClick="{{ cand.pick }}" style="border: 3px solid #26201A; background: #EFE0C2; text-align: center; padding: 17px 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; user-select: none; box-shadow: 4px 4px 0 #26201A;">{{ cand.name }}</div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ hasChanNote }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top: 16px; font-size: 13px; color: #B4543B; font-weight: 500;">{{ t.termLimitedNote }} {{ chanNote }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- ============ GATE (shared) ============ -->
+  <sc-if value="{{ isGate }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Pass Gate" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 32px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #DD5126;">{{ t.confidential }}</div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px;">
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #9C8E76;">{{ t.passPhoneTo }}</div>
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 1">{{ gateName }}</div>
+        <div style="font-size: 15px; color: #D8CBAE; max-width: 290px; line-height: 1.5;">{{ gateSub }}</div>
+      </div>
+      <div onClick="{{ gateGo }}" style="border: 3px solid #E8A03C; color: #E8A03C; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ gateBtn }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ============ PRESIDENT DRAW ============ -->
+  <sc-if value="{{ isPresDraw }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="President Draw" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 24px;">
+      <div style="text-align: center;">
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">{{ presKicker }}</div>
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px">{{ t.presDrawA }}<br>{{ t.presDrawB }}</div>
+        <sc-if value="{{ reshuffled }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.12em; color: #9C8E76;">{{ t.reshuffleNote }}</div>
+        </sc-if>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 0 10px;">
+        <sc-for list="{{ drawCards }}" as="card" hint-placeholder-count="3">
+          <div onClick="{{ card.tap }}" style="background: {{ card.bg }}; border: {{ card.bd }}; box-shadow: 5px 5px 0 rgba(0,0,0,0.4); display: flex; align-items: center; gap: 18px; padding: 22px 22px; cursor: pointer; user-select: none; transform: {{ card.lift }}; filter: {{ card.filt }}; opacity: {{ card.op }};">
+            <div style="width: 30px; height: 30px; background: {{ card.symBg }}; border-radius: {{ card.symBR }}; transform: {{ card.symTr }};"></div>
+            <div style="font-size: 15px; font-weight: 700; letter-spacing: 0.18em; color: {{ card.fg }};">{{ card.kindWord }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ canDiscard }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ confirmDiscard }}" style="background: #E8A03C; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.discardSelected }}</div>
+      </sc-if>
+      <sc-if value="{{ noDiscardSel }}" hint-placeholder-val="{{ false }}">
+        <div style="border: 3px solid #6B5A43; color: #9C8E76; text-align: center; padding: 15px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.18em;">{{ t.tapToDiscard }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- ============ CHANCELLOR ENACT ============ -->
+  <sc-if value="{{ isChanEnact }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Chancellor Enact" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 24px;">
+      <div style="text-align: center;">
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">{{ chanKicker }}</div>
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px">{{ t.enactTitleA }}<br>{{ t.enactTitleB }}</div>
+        <div style="margin-top: 8px; font-size: 15px; color: #9C8E76">{{ t.enactSub }}</div>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 0 10px;">
+        <sc-for list="{{ enactCards }}" as="card" hint-placeholder-count="2">
+          <div onClick="{{ card.tap }}" style="background: {{ card.bg }}; border: {{ card.bd }}; box-shadow: 5px 5px 0 rgba(0,0,0,0.4); display: flex; align-items: center; gap: 18px; padding: 22px 22px; cursor: pointer; user-select: none; transform: {{ card.lift }}; filter: {{ card.filt }}; opacity: {{ card.op }};">
+            <div style="width: 30px; height: 30px; background: {{ card.symBg }}; border-radius: {{ card.symBR }}; transform: {{ card.symTr }};"></div>
+            <div style="font-size: 15px; font-weight: 700; letter-spacing: 0.18em; color: {{ card.fg }};">{{ card.kindWord }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <sc-if value="{{ canEnact }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ confirmEnact }}" style="background: {{ enactBtnBg }}; color: {{ enactBtnFg }}; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ enactBtnLabel }}</div>
+        </sc-if>
+        <sc-if value="{{ noEnactSel }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 3px solid #6B5A43; color: #9C8E76; text-align: center; padding: 15px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.18em;">{{ t.tapToEnact }}</div>
+        </sc-if>
+        <sc-if value="{{ canVeto }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ proposeVeto }}" style="border: 3px solid #DD5126; color: #DD5126; text-align: center; padding: 13px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; user-select: none;">{{ t.proposeVeto }}</div>
+        </sc-if>
+        <sc-if value="{{ vetoRefusedNote }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align: center; font-size: 13px; font-weight: 600; letter-spacing: 0.12em; color: #DD5126;">{{ t.vetoRefusedNote }}</div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ VETO ============ -->
+  <sc-if value="{{ isVeto }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Veto" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.publicVeto }}</div>
+      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ t.vetoTitleA }}<br>{{ t.vetoTitleB }}</div>
+      <div style="margin-top: 14px; font-size: 15px; color: #6B5A43; line-height: 1.6;">{{ vetoBody }}</div>
+      <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
+        <div onClick="{{ vetoAgree }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.vetoAgreeBtn }}</div>
+        <div onClick="{{ vetoRefuse }}" style="border: 3px solid #26201A; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.vetoRefuseBtn }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ POLICY RESULT ============ -->
+  <sc-if value="{{ isPolicyResult }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Policy Result" style="flex: 1; display: flex; flex-direction: column; background: {{ resultBg }}; color: {{ resultFg }}; padding: 32px 26px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: {{ resultSub }};">{{ t.publicAnnouncement }}</div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px;">
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.98">{{ resultTitle }}</div>
+        <div style="font-size: 15px; font-weight: 600; letter-spacing: 0.1em; color: {{ resultSub }}">{{ resultCounts }}</div>
+        <sc-if value="{{ resultChaos }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 3px solid {{ resultFg }}; padding: 14px 16px; font-size: 13px; font-weight: 500; line-height: 1.5;">{{ t.chaosBox }}</div>
+        </sc-if>
+        <sc-if value="{{ hasPower }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 3px solid {{ resultFg }}; padding: 14px 16px;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.24em;">{{ t.powerUnlocked }}</div>
+            <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 30px; margin-top: 4px;">{{ resultPowerName }}</div>
+          </div>
+        </sc-if>
+      </div>
+      <div onClick="{{ resultContinue }}" style="background: {{ resultFg }}; color: {{ resultBg }}; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ resultBtnLabel }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ============ POWER PICK ============ -->
+  <sc-if value="{{ isPowerPick }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Power Pick" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.presPowerPublic }}</div>
+      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ powerTitle }}</div>
+      <div style="margin-top: 12px; font-size: 15px; color: #6B5A43; line-height: 1.55;">{{ powerDesc }}</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px;">
+        <sc-for list="{{ powerTargets }}" as="t2" hint-placeholder-count="4">
+          <div onClick="{{ t2.pick }}" style="border: 3px solid #26201A; background: #EFE0C2; text-align: center; padding: 17px 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; user-select: none; box-shadow: 4px 4px 0 #26201A">{{ t2.name }}</div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ INVESTIGATION RESULT ============ -->
+  <sc-if value="{{ isInvResult }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Investigation Result" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 26px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #DD5126;">{{ t.presEyesOnly }}</div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px;">
+        <div style="font-size: 13px; letter-spacing: 0.24em; font-weight: 600; color: #9C8E76;">{{ t.dossierOn }}</div>
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 60px; line-height: 1">{{ invName }}</div>
+        <div style="border: 4px solid #F2E6CE; background: #EFE0C2; padding: 26px 34px; box-shadow: 8px 8px 0 rgba(0,0,0,0.45); animation: stampIn 0.35s ease-out;">
+          <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.22em; color: #6B5A43">{{ t.partyMembership }}</div>
+          <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 1; color: {{ invPartyColor }}; text-shadow: 3px 3px 0 #26201A; margin-top: 6px">{{ invPartyWord }}</div>
+        </div>
+        <div style="font-size: 15px; color: #9C8E76; max-width: 280px; line-height: 1.5">{{ t.invNote }}</div>
+      </div>
+      <div onClick="{{ invDone }}" style="background: #F2E6CE; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.concealContinue }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ============ POLICY PEEK ============ -->
+  <sc-if value="{{ isPeek }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Policy Peek" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 24px;">
+      <div style="text-align: center;">
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">{{ presKicker }}</div>
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 42px; line-height: 0.95; margin-top: 8px;">{{ t.peekA }}</div>
+        <div style="margin-top: 8px; font-size: 13px; color: #9C8E76;">{{ t.peekSub }}</div>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 0 10px;">
+        <sc-for list="{{ peekCards }}" as="card" hint-placeholder-count="3">
+          <div style="background: {{ card.bg }}; border: 4px solid #F2E6CE; box-shadow: 5px 5px 0 rgba(0,0,0,0.4); display: flex; align-items: center; gap: 16px; padding: 18px 20px;">
+            <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 30px; color: {{ card.fg }};">{{ card.n }}</div>
+            <div style="width: 28px; height: 28px; background: {{ card.symBg }}; border-radius: {{ card.symBR }}; transform: {{ card.symTr }};"></div>
+            <div style="font-size: 15px; font-weight: 700; letter-spacing: 0.18em; color: {{ card.fg }};">{{ card.kindWord }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div onClick="{{ peekDone }}" style="background: #F2E6CE; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.concealContinue }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ============ EXECUTION RESULT ============ -->
+  <sc-if value="{{ isExecResult }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Execution Result" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.publicAnnouncement }}</div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px;">
+        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95;">{{ execName }}<br>{{ t.execVerb }}</div>
+        <div style="font-size: 15px; color: #6B5A43; line-height: 1.6;">{{ t.execBody }}</div>
+      </div>
+      <div onClick="{{ execDone }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.nextRoundBtn }}</div>
+    </div>
+  </sc-if>
+
+  <!-- ============ GAME OVER ============ -->
+  <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Game Over" style="flex: 1; display: flex; flex-direction: column; background: {{ overBg }}; color: {{ overFg }}; padding: 30px 26px 28px;">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: {{ overSub }};">{{ t.gameOverKicker }}</div>
+      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ overTitle }}</div>
+      <div style="margin-top: 10px; font-size: 15px; font-weight: 500; line-height: 1.5; color: {{ overSub }};">{{ overReason }}</div>
+      <div style="margin-top: 20px; border: 4px solid {{ overFg }}; background: #F2E6CE; color: #26201A;">
+        <div style="padding: 10px 16px; border-bottom: 3px solid #26201A; font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #B4543B;">{{ t.rolesRevealed }}</div>
+        <div style="display: flex; flex-direction: column;">
+          <sc-for list="{{ revealRows }}" as="row" hint-placeholder-count="7">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid rgba(38,32,26,0.2);">
+              <div style="font-size: 15px; font-weight: 600; text-decoration: {{ row.deco }};">{{ row.name }}</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <sc-if value="{{ row.dead }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: #6B5A43;">{{ t.executedTag }}</div>
+                </sc-if>
+                <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 21px; color: {{ row.roleColor }};">{{ row.roleWord }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 20px;">
+        <div onClick="{{ playAgain }}" style="background: {{ overFg }}; color: {{ overBg }}; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.newGameSame }}</div>
+        <div onClick="{{ toSetup }}" style="border: 3px solid {{ overFg }}; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.backToSetup }}</div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ RULES OVERLAY ============ -->
+  <sc-if value="{{ showRules }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Rules" style="position: fixed; inset: 0; z-index: 50; background: rgba(20,16,12,0.6); display: flex; justify-content: center;">
+      <div style="width: 100%; max-width: 430px; background: #26201A; color: #F2E6CE; overflow-y: auto; padding: 26px 26px 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px">{{ t.rulesTitle }}</div>
+          <div onClick="{{ closeRules }}" style="width: 40px; height: 40px; border: 2px solid #E8A03C; color: #E8A03C; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; user-select: none;">✕</div>
+        </div>
+
+        <div style="margin-top: 18px; display: flex; flex-direction: column; gap: 20px; font-size: 15px; line-height: 1.6; font-weight: 400; color: #D8CBAE;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesThisTable }}</div>
+            <div>{{ rulesRoleLine }}</div>
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesEachRound }}</div>
+            <div>{{ t.rulesRound1 }}<br>{{ t.rulesRound2 }}<br>{{ t.rulesRound3 }}</div>
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesTermH }}</div>
+            <div>{{ t.rulesTerm }}</div>
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ rulesPowersH }}</div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <sc-for list="{{ rulesPowers }}" as="rp" hint-placeholder-count="4">
+                <div><span style="color: #DD5126; font-weight: 600;">{{ t.policyWord }} {{ rp.slot }}</span> — {{ rp.text }}</div>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesVetoH }}</div>
+            <div>{{ t.rulesVeto }}</div>
+          </div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesEndH }}</div>
+            <div>{{ t.rulesEnd1 }}<br>{{ t.rulesEnd2 }}</div>
+          </div>
+          <div style="border-top: 1px solid rgba(232,160,60,0.35); padding-top: 18px;">
+            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.creditsH }}</div>
+            <div style="font-size: 13px; line-height: 1.6; color: #9C8E76;">{{ t.creditsBody }}</div>
+            <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 10px;">
+              <a href="https://www.secrethitler.com" target="_blank" rel="noopener" style="font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: #E8A03C; text-decoration: none;">secrethitler.com</a>
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener" style="font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: #E8A03C; text-decoration: none;">creativecommons.org · CC BY-NC-SA 4.0</a>
+            </div>
+          </div>
+          <div style="border-top: 1px solid rgba(232,160,60,0.35); padding-top: 18px;">
+            <div onClick="{{ abandon }}" style="border: 2px solid #DD5126; color: #DD5126; text-align: center; padding: 13px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; user-select: none">{{ t.abandonBtn }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.freshApp();
+  }
+
+  freshApp() {
+    return {
+      lang: (this.state && this.state.lang) || 'en',
+      screen: 'setup', count: 7, useNames: false,
+      drafts: ['', '', '', '', '', '', '', '', '', ''],
+      players: [], deck: [], discard: [], lib: 0, fas: 0,
+      tracker: 0, presidentIdx: 0, chancellorIdx: null,
+      lastPresIdx: null, lastChanIdx: null, round: 1,
+      dealIndex: 0, drawn: [], sel: null,
+      pendingPower: null, invTarget: null,
+      specialReturnFrom: null, vetoRefused: false, reshuffled: false,
+      chaos: false, lastEnacted: null, execName: '',
+      gate: null, winner: null, winKey: '', winName: '', showRules: false
+    };
+  }
+
+  strings() {
+    if (this._STR) return this._STR;
+    this._STR = {
+      en: {
+        setupKicker: 'PASS-AND-PLAY COMPANION',
+        titleA: 'Secret', titleB: 'Hitler',
+        setupIntro: 'One phone deals the roles, shuffles the deck and keeps the score. Nominations and votes happen out loud, at the table.',
+        playersAtTable: 'PLAYERS AT THE TABLE',
+        nameThePlayers: 'NAME THE PLAYERS?',
+        noNumbers: 'NO — NUMBERS', yesNames: 'YES — NAMES',
+        seatingNote: 'Enter names in seating order, clockwise around the table.',
+        dealRoles: 'DEAL THE ROLES',
+        playerName: n => 'Player ' + n,
+        roleSummary: (l, f) => l + ' LIBERALS · ' + f + ' FASCIST' + (f > 1 ? 'S' : '') + ' · 1 HITLER',
+        dealingRoles: 'DEALING ROLES',
+        dealProgress: (n, m) => n + ' OF ' + m,
+        passPhoneTo: 'PASS THE PHONE TO',
+        dealGateSub: 'When no one else can see the screen, reveal your secret role.',
+        dealBtn: n => 'I AM ' + n.toUpperCase() + ' — REVEAL',
+        eyesOnly: 'EYES ONLY',
+        secretRole: 'SECRET ROLE',
+        partyLine: isLib => 'PARTY MEMBERSHIP: ' + (isLib ? 'LIBERAL' : 'FASCIST'),
+        conspirators: 'YOUR FELLOW CONSPIRATORS', conspirator: 'YOUR CONSPIRATOR', standAlone: 'YOU STAND ALONE',
+        fasLine: ns => (ns.length > 1 ? 'Fascists: ' : 'Fascist: ') + ns.join(', '),
+        hitlerIs: n => 'Hitler: ' + n,
+        yourFascist: ns => 'Your fascist is ' + ns,
+        hitlerAlone: 'You do not know your fascists — but they know you.',
+        memoFas: 'MEMORIZE IT. TRUST NO ONE.', memoLib: 'FIND HITLER. SAVE THE REPUBLIC.',
+        hidePass: 'HIDE & PASS THE PHONE',
+        publicReadAloud: 'PUBLIC — READ ALOUD',
+        nightTitle: 'Lights out.',
+        nightIntro: 'All roles are dealt. Place the phone face-down and run the ritual:',
+        nightSmall: [
+          'Everyone — close your eyes and make a fist on the table.',
+          'Fascist and Hitler — open your eyes and find each other.',
+          'Everyone — close your eyes again.',
+          'Everyone — open your eyes. The first election begins.'
+        ],
+        nightBig: [
+          'Everyone — close your eyes and make a fist on the table.',
+          'Hitler — keep your eyes closed and raise your thumb.',
+          'Fascists — open your eyes. Note each other and Hitler\u2019s thumb.',
+          'Fascists close eyes, Hitler lowers thumb. Then everyone — open your eyes.'
+        ],
+        toFirstElection: 'TO THE FIRST ELECTION',
+        roundTitle: n => 'Round ' + n,
+        election: 'ELECTION',
+        president: 'PRESIDENT',
+        notEligible: 'NOT ELIGIBLE AS CHANCELLOR',
+        everyoneEligible: 'Everyone may serve',
+        fascistPolicies: 'FASCIST POLICIES', liberalPolicies: 'LIBERAL POLICIES',
+        electionTracker: 'ELECTION TRACKER',
+        trackerNote3: '3 FAILS = CHAOS', trackerNote1: 'ONE MORE = CHAOS',
+        deckWord: 'DECK',
+        deckLine1: d => d + ' TO DRAW',
+        deckLine2: x => x + ' DISCARDED',
+        theTable: 'THE TABLE',
+        dashInstr: n => n.toUpperCase() + ' NOMINATES A CHANCELLOR. VOTE OUT LOUD, THEN RECORD:',
+        votePassed: 'VOTE PASSED', voteFailed: 'VOTE FAILED',
+        govElected: 'GOVERNMENT ELECTED',
+        chanPickA: 'Who is', chanPickB: 'Chancellor?',
+        chanPickSub: p => 'Tap the player the table just elected alongside President ' + p + '.',
+        termLimitedNote: 'Term-limited and not shown:',
+        confidential: 'CONFIDENTIAL',
+        gateSubs: {
+          gpPres: () => "President's eyes only — the top three policies of the deck await.",
+          gpChan: () => "Chancellor's eyes only — choose which of the two policies becomes law.",
+          gpPeek: () => "President's eyes only — a glimpse of the next three policies.",
+          gpInv: n => "President's eyes only — the party membership of " + n + '.'
+        },
+        gateBtns: { gbReveal: 'REVEAL THE POLICIES', gbPeek: 'SHOW THE TOP THREE', gbDossier: 'OPEN THE DOSSIER' },
+        presKicker: n => 'PRESIDENT ' + n.toUpperCase() + ' — EYES ONLY',
+        chanKicker: n => 'CHANCELLOR ' + n.toUpperCase() + ' — EYES ONLY',
+        presDrawA: 'Draw three.', presDrawB: 'Discard one.',
+        reshuffleNote: 'THE DISCARD PILE WAS SHUFFLED BACK INTO THE DECK',
+        discardSelected: 'DISCARD THE SELECTED POLICY',
+        tapToDiscard: 'TAP THE POLICY TO DISCARD',
+        enactTitleA: 'Two policies.', enactTitleB: 'Enact one.',
+        enactSub: 'The other is discarded face-down. Say nothing.',
+        enactBtn: w => 'ENACT THE ' + w + ' POLICY',
+        tapToEnact: 'TAP THE POLICY TO ENACT',
+        proposeVeto: 'PROPOSE THE VETO',
+        vetoRefusedNote: 'VETO REFUSED — YOU MUST ENACT A POLICY',
+        publicVeto: 'PUBLIC — VETO POWER',
+        vetoTitleA: 'The veto', vetoTitleB: 'is proposed.',
+        vetoBody: (c, p) => 'Chancellor ' + c + ' wishes to discard both policies. President ' + p + ', do you consent? If you do, the election tracker advances by one.',
+        vetoAgreeBtn: 'I CONSENT — DISCARD BOTH',
+        vetoRefuseBtn: 'I REFUSE — THE CHANCELLOR MUST ENACT',
+        publicAnnouncement: 'PUBLIC ANNOUNCEMENT',
+        resultTitle: F => F ? 'A Fascist policy is enacted.' : 'A Liberal policy is enacted.',
+        resultCounts: (F, fas, lib) => F ? 'FASCIST POLICIES: ' + fas + ' OF 6' : 'LIBERAL POLICIES: ' + lib + ' OF 5',
+        chaosBox: 'Three failed elections — the frustrated populace enacted the top policy of the deck on its own. No power is granted. Term limits are forgotten.',
+        powerUnlocked: 'POWER UNLOCKED',
+        unlockPower: 'UNLOCK THE POWER', nextRoundBtn: 'TO THE NEXT ROUND',
+        presPowerPublic: 'PRESIDENTIAL POWER — PUBLIC CHOICE',
+        powerNames: { peek: 'Policy Peek', investigate: 'Investigate Loyalty', special: 'Special Election', execute: 'Execution' },
+        powerDescs: {
+          investigate: n => 'President ' + n + ' — choose a player to investigate. You alone will see their party membership. Each player may only be investigated once per game.',
+          special: n => 'President ' + n + ' — choose any player to become the next presidential candidate. Afterwards, the rotation resumes where it left off.',
+          execute: n => 'President ' + n + ' — choose a player to execute. If they are Hitler, the Liberals win on the spot. Choose well.'
+        },
+        slotLabels: { investigate: 'INVESTIGATE LOYALTY', peek: 'POLICY PEEK', special: 'SPECIAL ELECTION', execute: 'EXECUTION' },
+        winSlot: 'WIN',
+        presEyesOnly: "PRESIDENT'S EYES ONLY",
+        dossierOn: 'THE DOSSIER ON',
+        partyMembership: 'PARTY MEMBERSHIP',
+        invParty: { lib: 'Liberal', fas: 'Fascist' },
+        invNote: "Hitler's membership card reads Fascist. You may lie about what you saw.",
+        concealContinue: 'CONCEAL & CONTINUE',
+        peekA: 'The next three.',
+        peekSub: 'Top of the deck first. They stay where they are.',
+        execVerb: 'is executed.',
+        execBody: 'They were not Hitler. They say nothing, reveal nothing, vote no more, and hold no office. The game continues.',
+        gameOverKicker: 'THE GAME IS OVER',
+        overTitles: { liberal: 'The Liberals win.', fascist: 'The Fascists win.' },
+        winReasons: {
+          libPolicies: () => 'Five Liberal policies have been enacted. The Republic stands.',
+          fasPolicies: () => 'Six Fascist policies have been enacted. The Republic falls.',
+          hitlerChan: n => n + ' is Hitler — and the table elected him Chancellor with three Fascist policies on the board.',
+          hitlerShot: n => n + ' was Hitler. The bullet found its mark.'
+        },
+        rolesRevealed: 'THE ROLES, REVEALED',
+        executedTag: 'EXECUTED',
+        roleNames: { liberal: 'Liberal', fascist: 'Fascist', hitler: 'Hitler' },
+        fascistCard: 'FASCIST', liberalCard: 'LIBERAL',
+        newGameSame: 'NEW GAME — SAME PLAYERS',
+        backToSetup: 'BACK TO SETUP',
+        rulesTitle: 'The Rules',
+        rulesThisTable: 'THIS TABLE',
+        rulesRoleLine: (rc, rl, rf) => rc + ' players: ' + rl + ' Liberals, ' + rf + ' Fascist' + (rf > 1 ? 's' : '') + ' and Hitler. ' + (rc <= 6 ? 'Hitler knows his fascist.' : 'Hitler does not know the fascists — they know him.'),
+        rulesEachRound: 'EACH ROUND',
+        rulesRound1: '1 — The President nominates a Chancellor out loud. Everyone votes yes or no, out loud.',
+        rulesRound2: '2 — If elected, the President draws three policies, discards one, and the Chancellor enacts one of the remaining two.',
+        rulesRound3: '3 — If the vote fails, the election tracker advances. At three, the top policy of the deck is enacted by the angry mob.',
+        rulesTermH: 'TERM LIMITS',
+        rulesTerm: 'The last elected President and Chancellor may not be nominated as Chancellor. With five or fewer players alive, only the last Chancellor is barred.',
+        rulesPowersH: n => 'FASCIST TRACK POWERS (' + n + ' PLAYERS)',
+        policyWord: 'Policy',
+        rulesVetoH: 'THE VETO',
+        rulesVeto: 'Once five Fascist policies are enacted, the Chancellor may propose discarding both policies. If the President consents, nothing is enacted and the election tracker advances.',
+        rulesEndH: 'HOW IT ENDS',
+        rulesEnd1: 'Liberals win with five Liberal policies, or by executing Hitler.',
+        rulesEnd2: 'Fascists win with six Fascist policies, or if Hitler is elected Chancellor after three Fascist policies.',
+        abandonBtn: 'ABANDON GAME — BACK TO SETUP',
+        confirmAbandon: 'Abandon this game and return to setup?',
+        creditsH: 'CREDITS & LICENSE',
+        creditsBody: 'Unofficial, non-commercial companion app for Secret Hitler — created by Mike Boxleiter, Tommy Maranges and Max Temkin (illustrations by Mackenzie Schubert). This app reimplements the rules with original artwork and is shared under the same Creative Commons BY-NC-SA 4.0 license as the game. Not affiliated with or endorsed by the creators.'
+      },
+      cs: {
+        setupKicker: 'HRA NA JEDEN TELEFON',
+        titleA: 'Tajný', titleB: 'Hitler',
+        setupIntro: 'Jeden telefon rozdá role, zamíchá balíček zákonů a hlídá skóre. Nominace a hlasování probíhají nahlas u stolu.',
+        playersAtTable: 'HRÁČŮ U STOLU',
+        nameThePlayers: 'POJMENOVAT HRÁČE?',
+        noNumbers: 'NE — ČÍSLA', yesNames: 'ANO — JMÉNA',
+        seatingNote: 'Zadej jména v pořadí, jak sedíte u stolu, po směru hodinových ručiček.',
+        dealRoles: 'ROZDAT ROLE',
+        playerName: n => 'Hráč ' + n,
+        roleSummary: (l, f) => l + (l <= 4 ? ' LIBERÁLOVÉ' : ' LIBERÁLŮ') + ' · ' + f + (f === 1 ? ' FAŠISTA' : ' FAŠISTÉ') + ' · 1 HITLER',
+        dealingRoles: 'ROZDÁVÁNÍ ROLÍ',
+        dealProgress: (n, m) => n + ' Z ' + m,
+        passPhoneTo: 'TELEFON DOSTÁVÁ',
+        dealGateSub: 'Až na obrazovku neuvidí nikdo jiný, odhal svou tajnou roli.',
+        dealBtn: n => 'JSEM ' + n.toUpperCase() + ' — ODHALIT',
+        eyesOnly: 'PŘÍSNĚ TAJNÉ',
+        secretRole: 'TAJNÁ ROLE',
+        partyLine: isLib => 'STRANICKÁ PŘÍSLUŠNOST: ' + (isLib ? 'LIBERÁLNÍ' : 'FAŠISTICKÁ'),
+        conspirators: 'TVOJI SPOLUSPIKLENCI', conspirator: 'TVŮJ SPOLUSPIKLENEC', standAlone: 'JSI V TOM SÁM',
+        fasLine: ns => (ns.length > 1 ? 'Fašisté: ' : 'Fašista: ') + ns.join(', '),
+        hitlerIs: n => 'Hitler: ' + n,
+        yourFascist: ns => 'Tvůj fašista je ' + ns,
+        hitlerAlone: 'Své fašisty neznáš — oni tebe ano.',
+        memoFas: 'ZAPAMATUJ SI TO. NEVĚŘ NIKOMU.', memoLib: 'NAJDI HITLERA. ZACHRAŇ REPUBLIKU.',
+        hidePass: 'SKRÝT A PODAT TELEFON',
+        publicReadAloud: 'VEŘEJNÉ — ČTI NAHLAS',
+        nightTitle: 'Padá tma.',
+        nightIntro: 'Role jsou rozdány. Polož telefon displejem dolů a proveďte rituál:',
+        nightSmall: [
+          'Všichni — zavřete oči a položte pěst na stůl.',
+          'Fašista a Hitler — otevřete oči a najděte se.',
+          'Všichni — znovu zavřete oči.',
+          'Všichni — otevřete oči. První volba začíná.'
+        ],
+        nightBig: [
+          'Všichni — zavřete oči a položte pěst na stůl.',
+          'Hitlere — nech oči zavřené a zvedni palec.',
+          'Fašisté — otevřete oči. Všimněte si sebe navzájem i Hitlerova palce.',
+          'Fašisté zavřou oči, Hitler skloní palec. Pak všichni — otevřete oči.'
+        ],
+        toFirstElection: 'K PRVNÍ VOLBĚ',
+        roundTitle: n => 'Kolo ' + n,
+        election: 'VOLBY',
+        president: 'PREZIDENT',
+        notEligible: 'NEMŮŽE BÝT KANCLÉŘEM',
+        everyoneEligible: 'Kdokoli může sloužit',
+        fascistPolicies: 'FAŠISTICKÉ ZÁKONY', liberalPolicies: 'LIBERÁLNÍ ZÁKONY',
+        electionTracker: 'POČÍTADLO VOLEB',
+        trackerNote3: '3 NEÚSPĚCHY = CHAOS', trackerNote1: 'JEŠTĚ JEDEN = CHAOS',
+        deckWord: 'BALÍČEK',
+        deckLine1: d => d + ' V BALÍČKU',
+        deckLine2: x => x + ' ODLOŽENO',
+        theTable: 'U STOLU',
+        dashInstr: n => n.toUpperCase() + ' NAVRHNE KANCLÉŘE. HLASUJTE NAHLAS A ZAZNAMENEJTE:',
+        votePassed: 'ZVOLENO', voteFailed: 'ZAMÍTNUTO',
+        govElected: 'VLÁDA ZVOLENA',
+        chanPickA: 'Kdo je', chanPickB: 'kancléřem?',
+        chanPickSub: p => 'Klepni na hráče, kterého stůl právě zvolil po boku prezidenta ' + p + '.',
+        termLimitedNote: 'Kvůli limitu úřadů chybí:',
+        confidential: 'DŮVĚRNÉ',
+        gateSubs: {
+          gpPres: () => 'Jen pro oči prezidenta — čekají tři vrchní zákony balíčku.',
+          gpChan: () => 'Jen pro oči kancléře — vyber, který ze dvou zákonů vstoupí v platnost.',
+          gpPeek: () => 'Jen pro oči prezidenta — pohled na další tři zákony.',
+          gpInv: n => 'Jen pro oči prezidenta — stranická příslušnost hráče ' + n + '.'
+        },
+        gateBtns: { gbReveal: 'ODHALIT ZÁKONY', gbPeek: 'UKÁZAT TŘI VRCHNÍ', gbDossier: 'OTEVŘÍT SLOŽKU' },
+        presKicker: n => 'PREZIDENT ' + n.toUpperCase() + ' — PŘÍSNĚ TAJNÉ',
+        chanKicker: n => 'KANCLÉŘ ' + n.toUpperCase() + ' — PŘÍSNĚ TAJNÉ',
+        presDrawA: 'Tři zákony.', presDrawB: 'Jeden zahoď.',
+        reshuffleNote: 'ODLOŽENÉ ZÁKONY BYLY ZAMÍCHÁNY ZPĚT DO BALÍČKU',
+        discardSelected: 'ZAHODIT VYBRANÝ ZÁKON',
+        tapToDiscard: 'KLEPNI NA ZÁKON, KTERÝ ZAHODÍŠ',
+        enactTitleA: 'Dva zákony.', enactTitleB: 'Jeden schval.',
+        enactSub: 'Druhý se zahodí lícem dolů. Mlč.',
+        enactBtn: w => 'SCHVÁLIT ' + w + ' ZÁKON',
+        tapToEnact: 'KLEPNI NA ZÁKON, KTERÝ SCHVÁLÍŠ',
+        proposeVeto: 'NAVRHNOUT VETO',
+        vetoRefusedNote: 'VETO ODMÍTNUTO — MUSÍŠ SCHVÁLIT ZÁKON',
+        publicVeto: 'VEŘEJNÉ — PRÁVO VETA',
+        vetoTitleA: 'Veto je', vetoTitleB: 'navrženo.',
+        vetoBody: (c, p) => 'Kancléř ' + c + ' chce zahodit oba zákony. Prezidente ' + p + ', souhlasíš? Pokud ano, počítadlo voleb se posune o jedna.',
+        vetoAgreeBtn: 'SOUHLASÍM — ZAHODIT OBA',
+        vetoRefuseBtn: 'ODMÍTÁM — KANCLÉŘ MUSÍ SCHVÁLIT',
+        publicAnnouncement: 'VEŘEJNÉ OZNÁMENÍ',
+        resultTitle: F => F ? 'Fašistický zákon byl schválen.' : 'Liberální zákon byl schválen.',
+        resultCounts: (F, fas, lib) => F ? 'FAŠISTICKÉ ZÁKONY: ' + fas + ' Z 6' : 'LIBERÁLNÍ ZÁKONY: ' + lib + ' Z 5',
+        chaosBox: 'Tři neúspěšné volby — rozhněvaný lid sám schválil vrchní zákon balíčku. Žádná pravomoc se neuděluje. Limity úřadů jsou zapomenuty.',
+        powerUnlocked: 'ODEMČENA PRAVOMOC',
+        unlockPower: 'POUŽÍT PRAVOMOC', nextRoundBtn: 'DO DALŠÍHO KOLA',
+        presPowerPublic: 'PREZIDENTSKÁ PRAVOMOC — VEŘEJNÁ VOLBA',
+        powerNames: { peek: 'Nahlédnutí na zákony', investigate: 'Lustrace', special: 'Mimořádná volba', execute: 'Poprava' },
+        powerDescs: {
+          investigate: n => 'Prezidente ' + n + ' — vyber hráče k lustraci. Jeho stranickou příslušnost uvidíš jen ty. Každého hráče lze lustrovat jen jednou za hru.',
+          special: n => 'Prezidente ' + n + ' — vyber libovolného hráče jako příštího kandidáta na prezidenta. Poté rotace pokračuje tam, kde skončila.',
+          execute: n => 'Prezidente ' + n + ' — vyber hráče k popravě. Je-li to Hitler, liberálové na místě vítězí. Vybírej moudře.'
+        },
+        slotLabels: { investigate: 'LUSTRACE', peek: 'NAHLÉDNUTÍ NA ZÁKONY', special: 'MIMOŘÁDNÁ VOLBA', execute: 'POPRAVA' },
+        winSlot: 'VÝHRA',
+        presEyesOnly: 'JEN PRO OČI PREZIDENTA',
+        dossierOn: 'SLOŽKA HRÁČE',
+        partyMembership: 'STRANICKÁ PŘÍSLUŠNOST',
+        invParty: { lib: 'Liberální', fas: 'Fašistická' },
+        invNote: 'Hitlerova legitimace ukazuje fašistickou stranu. O tom, co jsi viděl, smíš lhát.',
+        concealContinue: 'SKRÝT A POKRAČOVAT',
+        peekA: 'Další tři.',
+        peekSub: 'Vrchní zákon balíčku je první. Zůstávají, kde jsou.',
+        execVerb: 'končí na popravišti.',
+        execBody: 'Nebyl to Hitler. Mlčí, nic neprozrazuje, už nehlasuje a nezastává žádný úřad. Hra pokračuje.',
+        gameOverKicker: 'HRA SKONČILA',
+        overTitles: { liberal: 'Liberálové vítězí.', fascist: 'Fašisté vítězí.' },
+        winReasons: {
+          libPolicies: () => 'Pět liberálních zákonů bylo schváleno. Republika stojí.',
+          fasPolicies: () => 'Šest fašistických zákonů bylo schváleno. Republika padá.',
+          hitlerChan: n => n + ' je Hitler — a stůl ho zvolil kancléřem se třemi fašistickými zákony na desce.',
+          hitlerShot: n => n + ' byl Hitler. Kulka našla svůj cíl.'
+        },
+        rolesRevealed: 'ODHALENÍ ROLÍ',
+        executedTag: 'POPRAVEN',
+        roleNames: { liberal: 'Liberál', fascist: 'Fašista', hitler: 'Hitler' },
+        fascistCard: 'FAŠISTICKÝ', liberalCard: 'LIBERÁLNÍ',
+        newGameSame: 'NOVÁ HRA — STEJNÍ HRÁČI',
+        backToSetup: 'ZPĚT NA NASTAVENÍ',
+        rulesTitle: 'Pravidla',
+        rulesThisTable: 'TENTO STŮL',
+        rulesRoleLine: (rc, rl, rf) => rc + ' hráčů: ' + rl + (rl <= 4 ? ' liberálové' : ' liberálů') + ', ' + rf + (rf === 1 ? ' fašista' : ' fašisté') + ' a Hitler. ' + (rc <= 6 ? 'Hitler svého fašistu zná.' : 'Hitler své fašisty nezná — oni jeho ano.'),
+        rulesEachRound: 'KAŽDÉ KOLO',
+        rulesRound1: '1 — Prezident nahlas navrhne kancléře. Všichni nahlas hlasují pro, nebo proti.',
+        rulesRound2: '2 — Při zvolení si prezident lízne tři zákony, jeden zahodí a kancléř jeden ze zbylých dvou schválí.',
+        rulesRound3: '3 — Při neúspěchu se posune počítadlo voleb. Na třetím poli rozhněvaný lid schválí vrchní zákon balíčku.',
+        rulesTermH: 'LIMITY ÚŘADŮ',
+        rulesTerm: 'Naposledy zvolený prezident a kancléř nesmí být navrženi na kancléře. Při pěti a méně živých hráčích platí limit jen pro posledního kancléře.',
+        rulesPowersH: n => 'PRAVOMOCI FAŠISTICKÉ ŘADY (' + n + ' HRÁČŮ)',
+        policyWord: 'Zákon',
+        rulesVetoH: 'VETO',
+        rulesVeto: 'Po pátém fašistickém zákonu může kancléř navrhnout zahození obou zákonů. Pokud prezident souhlasí, nic se neschválí a počítadlo voleb se posune.',
+        rulesEndH: 'JAK HRA KONČÍ',
+        rulesEnd1: 'Liberálové vítězí pěti liberálními zákony, nebo popravou Hitlera.',
+        rulesEnd2: 'Fašisté vítězí šesti fašistickými zákony, nebo zvolením Hitlera kancléřem po třech fašistických zákonech.',
+        abandonBtn: 'OPUSTIT HRU — ZPĚT NA NASTAVENÍ',
+        confirmAbandon: 'Opravdu opustit hru a vrátit se na nastavení?',
+        creditsH: 'AUTOŘI A LICENCE',
+        creditsBody: 'Neoficiální, nekomerční pomocná aplikace ke hře Secret Hitler — autoři Mike Boxleiter, Tommy Maranges a Max Temkin (ilustrace Mackenzie Schubert). Aplikace znovu implementuje pravidla s vlastní grafikou a je šířena pod stejnou licencí Creative Commons BY-NC-SA 4.0 jako původní hra. Není spojena s autory ani jimi schválena.'
+      }
+    };
+    return this._STR;
+  }
+
+  S() { return this.strings()[this.state.lang] || this.strings().en; }
+
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem('secret-hitler-game-v1');
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && s.screen) this.setState(s);
+      }
+    } catch (e) {}
+  }
+
+  componentDidUpdate() {
+    try { localStorage.setItem('secret-hitler-game-v1', JSON.stringify(this.state)); } catch (e) {}
+  }
+
+  shuffle(a) {
+    const r = [...a];
+    for (let i = r.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [r[i], r[j]] = [r[j], r[i]];
+    }
+    return r;
+  }
+
+  name(i) { const p = this.state.players[i]; return p ? p.name : ''; }
+  aliveCount() { return this.state.players.filter(p => p.alive).length; }
+
+  nextAlive(i) {
+    const n = this.state.players.length;
+    let j = i;
+    for (let k = 0; k < n; k++) {
+      j = (j + 1) % n;
+      if (this.state.players[j].alive) return j;
+    }
+    return i;
+  }
+
+  libCountFor(c) { return ({ 5: 3, 6: 4, 7: 4, 8: 5, 9: 5, 10: 6 })[c]; }
+
+  powersChart() {
+    const c = this.state.players.length || this.state.count;
+    if (c <= 6) return { 3: 'peek', 4: 'execute', 5: 'execute' };
+    if (c <= 8) return { 2: 'investigate', 3: 'special', 4: 'execute', 5: 'execute' };
+    return { 1: 'investigate', 2: 'investigate', 3: 'special', 4: 'execute', 5: 'execute' };
+  }
+
+  startGame() {
+    const { count, useNames, drafts, lang } = this.state;
+    const L = this.S();
+    const libN = this.libCountFor(count);
+    const fasN = count - libN - 1;
+    let roles = ['hitler'];
+    for (let i = 0; i < fasN; i++) roles.push('fascist');
+    while (roles.length < count) roles.push('liberal');
+    roles = this.shuffle(roles);
+    const players = [];
+    for (let i = 0; i < count; i++) {
+      const nm = useNames && drafts[i] && drafts[i].trim() ? drafts[i].trim() : L.playerName(i + 1);
+      players.push({ name: nm, role: roles[i], alive: true, investigated: false });
+    }
+    const deck = this.shuffle([].concat(Array(11).fill('F'), Array(6).fill('L')));
+    this.setState({
+      ...this.freshApp(),
+      lang, count, useNames, drafts: [...drafts],
+      players, deck,
+      presidentIdx: Math.floor(Math.random() * count),
+      screen: 'deal-gate', dealIndex: 0
+    });
+  }
+
+  advanceRoundPatch() {
+    const s = this.state;
+    let presidentIdx, specialReturnFrom = s.specialReturnFrom;
+    if (specialReturnFrom != null) {
+      presidentIdx = this.nextAlive(specialReturnFrom);
+      specialReturnFrom = null;
+    } else {
+      presidentIdx = this.nextAlive(s.presidentIdx);
+    }
+    return {
+      presidentIdx, specialReturnFrom, round: s.round + 1,
+      chancellorIdx: null, pendingPower: null, vetoRefused: false,
+      chaos: false, sel: null, drawn: [], reshuffled: false, screen: 'dashboard'
+    };
+  }
+
+  applyEnact(card, opts) {
+    const s = this.state;
+    const lib = s.lib + (card === 'L' ? 1 : 0);
+    const fas = s.fas + (card === 'F' ? 1 : 0);
+    let winner = null, winKey = '';
+    if (lib >= 5) { winner = 'liberal'; winKey = 'libPolicies'; }
+    if (fas >= 6) { winner = 'fascist'; winKey = 'fasPolicies'; }
+    const pendingPower = (!opts.chaos && card === 'F' && !winner) ? (this.powersChart()[fas] || null) : null;
+    this.setState({
+      lib, fas, lastEnacted: card, chaos: !!opts.chaos, pendingPower,
+      deck: opts.deck != null ? opts.deck : s.deck,
+      discard: opts.discard != null ? opts.discard : s.discard,
+      drawn: [], sel: null, winner, winKey, winName: '',
+      screen: winner ? 'over' : 'policy-result',
+      ...(opts.extra || {})
+    });
+  }
+
+  doChaos() {
+    const s = this.state;
+    let deck = [...s.deck], discard = [...s.discard];
+    if (deck.length < 1) { deck = this.shuffle([].concat(deck, discard)); discard = []; }
+    const card = deck.shift();
+    this.applyEnact(card, {
+      deck, discard, chaos: true,
+      extra: { tracker: 0, lastPresIdx: null, lastChanIdx: null }
+    });
+  }
+
+  chanPick(i) {
+    const s = this.state;
+    const p = s.players[i];
+    if (s.fas >= 3 && p.role === 'hitler') {
+      this.setState({ chancellorIdx: i, winner: 'fascist', winKey: 'hitlerChan', winName: p.name, screen: 'over' });
+      return;
+    }
+    let deck = [...s.deck], discard = [...s.discard], reshuffled = false;
+    if (deck.length < 3) { deck = this.shuffle([].concat(deck, discard)); discard = []; reshuffled = true; }
+    const drawn = deck.splice(0, 3);
+    this.setState({
+      chancellorIdx: i, lastPresIdx: s.presidentIdx, lastChanIdx: i, tracker: 0,
+      deck, discard, drawn, sel: null, reshuffled,
+      gate: { name: this.name(s.presidentIdx), subKey: 'gpPres', btnKey: 'gbReveal', next: 'pres-draw' },
+      screen: 'gate'
+    });
+  }
+
+  confirmDiscard() {
+    const s = this.state;
+    if (s.sel == null) return;
+    const d = [...s.drawn];
+    const out = d.splice(s.sel, 1)[0];
+    this.setState({
+      drawn: d, discard: [...s.discard, out], sel: null, reshuffled: false,
+      gate: { name: this.name(s.chancellorIdx), subKey: 'gpChan', btnKey: 'gbReveal', next: 'chan-enact' },
+      screen: 'gate'
+    });
+  }
+
+  confirmEnact() {
+    const s = this.state;
+    if (s.sel == null) return;
+    const d = [...s.drawn];
+    const card = d.splice(s.sel, 1)[0];
+    this.applyEnact(card, { discard: [...s.discard, d[0]] });
+  }
+
+  continueFromResult() {
+    const s = this.state;
+    const pk = s.pendingPower;
+    if (!pk) { this.setState(this.advanceRoundPatch()); return; }
+    if (pk === 'peek') {
+      let deck = [...s.deck], discard = [...s.discard];
+      if (deck.length < 3) { deck = this.shuffle([].concat(deck, discard)); discard = []; }
+      this.setState({
+        deck, discard,
+        gate: { name: this.name(s.presidentIdx), subKey: 'gpPeek', btnKey: 'gbPeek', next: 'peek' },
+        screen: 'gate'
+      });
+      return;
+    }
+    this.setState({ screen: 'power-pick' });
+  }
+
+  pickPowerTarget(i) {
+    const s = this.state;
+    const pk = s.pendingPower;
+    if (pk === 'investigate') {
+      const players = s.players.map((p, j) => j === i ? { ...p, investigated: true } : p);
+      this.setState({
+        players, invTarget: i,
+        gate: { name: this.name(s.presidentIdx), subKey: 'gpInv', subName: this.name(i), btnKey: 'gbDossier', next: 'inv-result' },
+        screen: 'gate'
+      });
+    } else if (pk === 'execute') {
+      const p = s.players[i];
+      const players = s.players.map((q, j) => j === i ? { ...q, alive: false } : q);
+      if (p.role === 'hitler') {
+        this.setState({ players, winner: 'liberal', winKey: 'hitlerShot', winName: p.name, screen: 'over' });
+      } else {
+        this.setState({ players, execName: p.name, screen: 'exec-result' });
+      }
+    } else if (pk === 'special') {
+      this.setState({
+        specialReturnFrom: s.presidentIdx, presidentIdx: i,
+        round: s.round + 1, chancellorIdx: null, pendingPower: null,
+        vetoRefused: false, chaos: false, sel: null, drawn: [], screen: 'dashboard'
+      });
+    }
+  }
+
+  renderVals() {
+    const s = this.state;
+    const sc = s.screen;
+    const L = this.S();
+    const roleColors = { liberal: '#46688B', fascist: '#DD5126', hitler: '#26201A' };
+
+    const cardFace = (k, i, selectable, row) => {
+      const F = k === 'F';
+      return {
+        kindWord: F ? L.fascistCard : L.liberalCard,
+        bg: F ? '#DD5126' : '#46688B',
+        fg: F ? '#26201A' : '#F2E6CE',
+        symBg: F ? '#26201A' : '#F2E6CE',
+        symBR: F ? '0' : '50%',
+        symTr: F ? 'rotate(45deg)' : 'none',
+        bd: selectable && s.sel === i ? '4px solid #E8A03C' : '4px solid #F2E6CE',
+        lift: selectable && s.sel === i ? (row ? 'translateX(12px)' : 'translateY(-14px)') : 'none',
+        filt: selectable && row && s.sel === i ? 'grayscale(0.9)' : 'none',
+        op: selectable && row && s.sel === i ? '0.55' : '1',
+        tap: selectable ? () => this.setState({ sel: i }) : null,
+        n: i + 1
+      };
+    };
+
+    const termLimited = [];
+    if (s.lastChanIdx != null && s.players[s.lastChanIdx] && s.players[s.lastChanIdx].alive && s.lastChanIdx !== s.presidentIdx) termLimited.push(s.lastChanIdx);
+    if (s.lastPresIdx != null && s.players[s.lastPresIdx] && s.players[s.lastPresIdx].alive && this.aliveCount() > 5 && s.lastPresIdx !== s.presidentIdx && s.lastPresIdx !== s.lastChanIdx) termLimited.push(s.lastPresIdx);
+
+    const libN = this.libCountFor(s.count);
+    const fasN = s.count - libN - 1;
+    const chart = this.powersChart();
+
+    const vals = {
+      t: L,
+      isSetup: sc === 'setup',
+      isDealGate: sc === 'deal-gate',
+      isDealReveal: sc === 'deal-reveal',
+      isNight: sc === 'night',
+      isDash: sc === 'dashboard',
+      isChanPick: sc === 'chan-pick',
+      isGate: sc === 'gate',
+      isPresDraw: sc === 'pres-draw',
+      isChanEnact: sc === 'chan-enact',
+      isVeto: sc === 'veto',
+      isPolicyResult: sc === 'policy-result',
+      isPowerPick: sc === 'power-pick',
+      isInvResult: sc === 'inv-result',
+      isPeek: sc === 'peek',
+      isExecResult: sc === 'exec-result',
+      isOver: sc === 'over',
+      showRules: s.showRules,
+      openRules: () => this.setState({ showRules: true }),
+      closeRules: () => this.setState({ showRules: false }),
+      abandon: () => {
+        if (window.confirm(L.confirmAbandon)) {
+          this.setState({ ...this.freshApp(), lang: s.lang, count: s.count, useNames: s.useNames, drafts: [...s.drafts] });
+        }
+      },
+
+      // --- language switcher ---
+      setEn: () => this.setState({ lang: 'en' }),
+      setCs: () => this.setState({ lang: 'cs' }),
+      enBg: s.lang === 'en' ? '#26201A' : '#F2E6CE',
+      enFg: s.lang === 'en' ? '#F2E6CE' : '#26201A',
+      csBg: s.lang === 'cs' ? '#26201A' : '#F2E6CE',
+      csFg: s.lang === 'cs' ? '#F2E6CE' : '#26201A',
+
+      // --- setup ---
+      count: s.count,
+      dec: () => this.setState({ count: Math.max(5, s.count - 1) }),
+      inc: () => this.setState({ count: Math.min(10, s.count + 1) }),
+      roleSummary: L.roleSummary(libN, fasN),
+      useNames: s.useNames,
+      namesOn: () => this.setState({ useNames: true }),
+      namesOff: () => this.setState({ useNames: false }),
+      noBg: s.useNames ? '#F2E6CE' : '#26201A',
+      noFg: s.useNames ? '#26201A' : '#F2E6CE',
+      yesBg: s.useNames ? '#26201A' : '#F2E6CE',
+      yesFg: s.useNames ? '#F2E6CE' : '#26201A',
+      nameInputs: Array.from({ length: s.count }, (_, i) => ({
+        label: L.playerName(i + 1),
+        value: s.drafts[i] || '',
+        onChange: (e) => {
+          const d = [...this.state.drafts];
+          d[i] = e.target.value;
+          this.setState({ drafts: d });
+        }
+      })),
+      startGame: () => this.startGame(),
+
+      // --- shared names ---
+      presName: this.name(s.presidentIdx),
+      presNameUp: this.name(s.presidentIdx).toUpperCase(),
+      chanName: s.chancellorIdx != null ? this.name(s.chancellorIdx) : '',
+      presKicker: L.presKicker(this.name(s.presidentIdx)),
+      chanKicker: s.chancellorIdx != null ? L.chanKicker(this.name(s.chancellorIdx)) : ''
+    };
+
+    // --- deal ---
+    const dp = s.players[s.dealIndex];
+    if (dp) {
+      vals.dealName = dp.name;
+      vals.dealNameUp = dp.name.toUpperCase();
+      vals.dealProgress = L.dealProgress(s.dealIndex + 1, s.players.length);
+      vals.dealBtnLabel = L.dealBtn(dp.name);
+      vals.showRole = () => this.setState({ screen: 'deal-reveal' });
+      vals.roleWord = L.roleNames[dp.role];
+      vals.roleColor = roleColors[dp.role];
+      vals.roleShadow = dp.role === 'hitler' ? '#DD5126' : '#26201A';
+      vals.roleBandBg = dp.role === 'liberal' ? '#46688B' : '#DD5126';
+      vals.partyLine = L.partyLine(dp.role === 'liberal');
+      const fasNames = s.players.filter((p, j) => p.role === 'fascist' && j !== s.dealIndex).map(p => p.name);
+      const hitlerName = (s.players.find(p => p.role === 'hitler') || {}).name;
+      if (dp.role === 'fascist') {
+        vals.hasIntel = true;
+        vals.intelTitle = L.conspirators;
+        const lines = [];
+        if (fasNames.length) lines.push({ text: L.fasLine(fasNames) });
+        lines.push({ text: L.hitlerIs(hitlerName) });
+        vals.intelLines = lines;
+        vals.memoLine = L.memoFas;
+      } else if (dp.role === 'hitler') {
+        vals.hasIntel = true;
+        if (s.players.length <= 6) {
+          vals.intelTitle = L.conspirator;
+          vals.intelLines = [{ text: L.yourFascist(fasNames.join(' & ')) }];
+        } else {
+          vals.intelTitle = L.standAlone;
+          vals.intelLines = [{ text: L.hitlerAlone }];
+        }
+        vals.memoLine = L.memoFas;
+      } else {
+        vals.hasIntel = false;
+        vals.intelTitle = '';
+        vals.intelLines = [];
+        vals.memoLine = L.memoLib;
+      }
+      vals.hideAndPass = () => {
+        const n = this.state.dealIndex + 1;
+        if (n >= this.state.players.length) this.setState({ screen: 'night' });
+        else this.setState({ screen: 'deal-gate', dealIndex: n });
+      };
+    }
+
+    // --- night ---
+    const steps = (s.players.length || s.count) <= 6 ? L.nightSmall : L.nightBig;
+    vals.nightSteps = steps.map((text, i) => ({ n: i + 1, text }));
+    vals.beginGame = () => this.setState({ screen: 'dashboard' });
+
+    // --- dashboard ---
+    vals.roundTitle = L.roundTitle(s.round);
+    vals.ineligibleText = termLimited.length ? termLimited.map(i => this.name(i)).join(', ') : L.everyoneEligible;
+    vals.fas = s.fas;
+    vals.lib = s.lib;
+    const symEmpty = { symShow: 'none', symBg: 'transparent', symBR: '0', symTr: 'none', symSize: '0' };
+    const fasSym = { symShow: 'block', symBg: '#26201A', symBR: '0', symTr: 'rotate(45deg)', symSize: '20px' };
+    const libSym = { symShow: 'block', symBg: '#F2E6CE', symBR: '50%', symTr: 'none', symSize: '22px' };
+    vals.fSlots = [1, 2, 3, 4, 5, 6].map(i => {
+      if (i <= s.fas) return { bg: '#DD5126', bd: '3px solid #26201A', label: '', lc: '#26201A', ...fasSym };
+      if (i === 6) return { bg: '#EFE0C2', bd: '3px solid #26201A', label: L.winSlot, lc: '#26201A', ...symEmpty };
+      const pk = chart[i];
+      if (pk) return { bg: '#EFE0C2', bd: '3px dashed #B4543B', label: L.slotLabels[pk], lc: '#B4543B', ...symEmpty };
+      return { bg: '#EFE0C2', bd: '3px solid #26201A', label: '', lc: '#26201A', ...symEmpty };
+    });
+    vals.lSlots = [1, 2, 3, 4, 5].map(i => {
+      if (i <= s.lib) return { bg: '#46688B', bd: '3px solid #26201A', label: '', lc: '#F2E6CE', ...libSym };
+      if (i === 5) return { bg: '#EFE0C2', bd: '3px solid #26201A', label: L.winSlot, lc: '#26201A', ...symEmpty };
+      return { bg: '#EFE0C2', bd: '3px solid #26201A', label: '', lc: '#26201A', ...symEmpty };
+    });
+    vals.dots = [0, 1, 2].map(i => ({ bg: i < s.tracker ? '#26201A' : '#EFE0C2' }));
+    vals.trackerNote = s.tracker === 2 ? L.trackerNote1 : L.trackerNote3;
+    vals.trackerNoteColor = s.tracker === 2 ? '#DD5126' : '#6B5A43';
+    vals.deckLine1 = L.deckLine1(s.deck.length);
+    vals.deckLine2 = L.deckLine2(s.discard.length);
+    vals.dashInstr = L.dashInstr(this.name(s.presidentIdx));
+    vals.chips = s.players.map((p, i) => ({
+      name: p.name,
+      bg: i === s.presidentIdx && p.alive ? '#26201A' : 'transparent',
+      fg: i === s.presidentIdx && p.alive ? '#F2E6CE' : (p.alive ? '#26201A' : '#B4543B'),
+      bd: p.alive ? '2px solid #26201A' : '2px solid #B4543B',
+      deco: p.alive ? 'none' : 'line-through',
+      op: p.alive ? '1' : '0.55'
+    }));
+    vals.votePassed = () => this.setState({ screen: 'chan-pick' });
+    vals.voteFailed = () => {
+      const t = this.state.tracker + 1;
+      if (t >= 3) this.doChaos();
+      else this.setState({ tracker: t, ...this.advanceRoundPatch() });
+    };
+
+    // --- chancellor pick ---
+    const cands = s.players
+      .map((p, i) => i)
+      .filter(i => s.players[i].alive && i !== s.presidentIdx && !termLimited.includes(i));
+    vals.chanCandidates = cands.map(i => ({ name: this.name(i), pick: () => this.chanPick(i) }));
+    vals.hasChanNote = termLimited.length > 0;
+    vals.chanNote = termLimited.map(i => this.name(i)).join(', ');
+    vals.chanPickSub = L.chanPickSub(this.name(s.presidentIdx));
+
+    // --- gate ---
+    const g = s.gate || {};
+    vals.gateName = g.name || '';
+    const subFn = g.subKey ? L.gateSubs[g.subKey] : null;
+    vals.gateSub = subFn ? subFn(g.subName) : (g.sub || '');
+    vals.gateBtn = (g.btnKey && L.gateBtns[g.btnKey]) || g.btn || 'OK';
+    vals.gateGo = () => this.setState({ screen: (this.state.gate || {}).next || 'dashboard' });
+
+    // --- president draw / chancellor enact ---
+    vals.drawCards = sc === 'pres-draw' ? s.drawn.map((k, i) => cardFace(k, i, true, true)) : [];
+    vals.canDiscard = sc === 'pres-draw' && s.sel != null;
+    vals.noDiscardSel = sc === 'pres-draw' && s.sel == null;
+    vals.confirmDiscard = () => this.confirmDiscard();
+    vals.reshuffled = s.reshuffled;
+
+    vals.enactCards = sc === 'chan-enact' ? s.drawn.map((k, i) => cardFace(k, i, true, true)) : [];
+    vals.canEnact = sc === 'chan-enact' && s.sel != null;
+    vals.noEnactSel = sc === 'chan-enact' && s.sel == null;
+    vals.confirmEnact = () => this.confirmEnact();
+    const selEnact = sc === 'chan-enact' && s.sel != null ? s.drawn[s.sel] : null;
+    vals.enactBtnBg = selEnact === 'L' ? '#46688B' : '#DD5126';
+    vals.enactBtnFg = selEnact === 'L' ? '#F2E6CE' : '#26201A';
+    vals.enactBtnLabel = L.enactBtn(selEnact === 'L' ? L.liberalCard : L.fascistCard);
+    vals.canVeto = sc === 'chan-enact' && s.fas === 5 && !s.vetoRefused;
+    vals.vetoRefusedNote = sc === 'chan-enact' && s.vetoRefused;
+    vals.proposeVeto = () => this.setState({ screen: 'veto' });
+
+    // --- veto ---
+    vals.vetoBody = L.vetoBody(vals.chanName, vals.presName);
+    vals.vetoAgree = () => {
+      const st = this.state;
+      const discard = [...st.discard, ...st.drawn];
+      const t = st.tracker + 1;
+      if (t >= 3) {
+        this.setState({ discard, drawn: [], sel: null, tracker: t }, () => this.doChaos());
+      } else {
+        this.setState({ discard, tracker: t, ...this.advanceRoundPatch() });
+      }
+    };
+    vals.vetoRefuse = () => this.setState({ vetoRefused: true, screen: 'chan-enact' });
+
+    // --- policy result ---
+    const F = s.lastEnacted === 'F';
+    vals.resultTitle = L.resultTitle(F);
+    vals.resultBg = F ? '#DD5126' : '#46688B';
+    vals.resultFg = F ? '#26201A' : '#F2E6CE';
+    vals.resultSub = F ? 'rgba(38,32,26,0.7)' : 'rgba(242,230,206,0.75)';
+    vals.resultCounts = L.resultCounts(F, s.fas, s.lib);
+    vals.resultChaos = s.chaos;
+    vals.hasPower = !!s.pendingPower;
+    vals.resultPowerName = s.pendingPower ? L.powerNames[s.pendingPower] : '';
+    vals.resultBtnLabel = s.pendingPower ? L.unlockPower : L.nextRoundBtn;
+    vals.resultContinue = () => this.continueFromResult();
+
+    // --- power pick ---
+    const pk = s.pendingPower;
+    const pName = this.name(s.presidentIdx);
+    vals.powerTitle = pk ? L.powerNames[pk] : '';
+    vals.powerDesc = pk && L.powerDescs[pk] ? L.powerDescs[pk](pName) : '';
+    const targets = s.players
+      .map((p, i) => i)
+      .filter(i => s.players[i].alive && i !== s.presidentIdx && (pk !== 'investigate' || !s.players[i].investigated));
+    vals.powerTargets = targets.map(i => ({ name: this.name(i), pick: () => this.pickPowerTarget(i) }));
+
+    // --- investigation result ---
+    const tgt = s.invTarget != null ? s.players[s.invTarget] : null;
+    vals.invName = tgt ? tgt.name : '';
+    vals.invPartyWord = tgt ? (tgt.role === 'liberal' ? L.invParty.lib : L.invParty.fas) : '';
+    vals.invPartyColor = tgt && tgt.role === 'liberal' ? '#46688B' : '#DD5126';
+    vals.invDone = () => this.setState(this.advanceRoundPatch());
+
+    // --- peek ---
+    vals.peekCards = sc === 'peek' ? s.deck.slice(0, 3).map((k, i) => cardFace(k, i, false, false)) : [];
+    vals.peekDone = () => this.setState(this.advanceRoundPatch());
+
+    // --- execution result ---
+    vals.execName = s.execName;
+    vals.execDone = () => this.setState(this.advanceRoundPatch());
+
+    // --- game over ---
+    const libWin = s.winner === 'liberal';
+    vals.overTitle = L.overTitles[s.winner || 'liberal'];
+    vals.overBg = libWin ? '#46688B' : '#DD5126';
+    vals.overFg = libWin ? '#F2E6CE' : '#26201A';
+    vals.overSub = libWin ? 'rgba(242,230,206,0.75)' : 'rgba(38,32,26,0.7)';
+    const wrFn = s.winKey ? L.winReasons[s.winKey] : null;
+    vals.overReason = wrFn ? wrFn(s.winName) : (s.winReason || '');
+    vals.revealRows = s.players.map(p => ({
+      name: p.name,
+      roleWord: L.roleNames[p.role],
+      roleColor: roleColors[p.role],
+      dead: !p.alive,
+      deco: p.alive ? 'none' : 'line-through'
+    }));
+    vals.playAgain = () => this.startGame();
+    vals.toSetup = () => this.setState({ ...this.freshApp(), lang: s.lang, count: s.count, useNames: s.useNames, drafts: [...s.drafts] });
+
+    // --- rules ---
+    const rc = s.players.length || s.count;
+    const rLib = this.libCountFor(rc);
+    const rFas = rc - rLib - 1;
+    vals.rulesRoleLine = L.rulesRoleLine(rc, rLib, rFas);
+    vals.rulesPowersH = L.rulesPowersH(rc);
+    vals.rulesPowers = Object.keys(chart).map(k => ({ slot: k, text: L.powerNames[chart[k]] }));
+
+    return vals;
+  }
+}
+</script>
+</body>
+</html>
