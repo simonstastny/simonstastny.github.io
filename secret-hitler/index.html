@@ -3,7 +3,115 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./support.js"></script>
+<script>
+/* ============================================================
+   Minimal template runtime.
+   Drives the existing <sc-if>/<sc-for>/{{ }} markup and the
+   `class Component extends DCLogic` logic class below — replaces
+   the original proprietary DC runtime, no behaviour change.
+   ============================================================ */
+(function () {
+  function resolve(name, scope, vm) {
+    return Object.prototype.hasOwnProperty.call(scope, name) ? scope[name] : vm[name];
+  }
+  // Bindings are only simple paths ("a", "a.b.c") or the literals true/false.
+  function evalExpr(expr, scope, vm) {
+    expr = expr.trim();
+    if (expr === 'true') return true;
+    if (expr === 'false') return false;
+    var parts = expr.split('.');
+    var v = resolve(parts[0], scope, vm);
+    for (var i = 1; i < parts.length; i++) v = (v == null) ? undefined : v[parts[i]];
+    return v;
+  }
+  // Extract the expression from a single-binding attribute value, e.g. "{{ isSetup }}" -> "isSetup".
+  function unwrap(s) { return (s || '').replace(/[{}]/g, '').trim(); }
+  function subst(text, scope, vm) {
+    return text.replace(/{{\s*([^}]+?)\s*}}/g, function (_, e) {
+      var v = evalExpr(e, scope, vm);
+      return v == null ? '' : String(v);
+    });
+  }
+  var EVENTS = { onclick: 'click', onchange: 'change' };
+
+  function processChildren(node, scope, vm) {
+    var out = [], kids = node.childNodes;
+    for (var i = 0; i < kids.length; i++) out = out.concat(processNode(kids[i], scope, vm));
+    return out;
+  }
+  // Returns an array of DOM nodes.
+  function processNode(node, scope, vm) {
+    if (node.nodeType === 3) return [document.createTextNode(subst(node.nodeValue, scope, vm))];
+    if (node.nodeType !== 1) return [];
+    var tag = node.tagName.toLowerCase();
+
+    if (tag === 'sc-if')
+      return evalExpr(unwrap(node.getAttribute('value')), scope, vm) ? processChildren(node, scope, vm) : [];
+
+    if (tag === 'sc-for') {
+      var list = evalExpr(unwrap(node.getAttribute('list')), scope, vm) || [];
+      var as = node.getAttribute('as'), out = [];
+      for (var i = 0; i < list.length; i++) {
+        var s2 = {};
+        for (var k in scope) if (Object.prototype.hasOwnProperty.call(scope, k)) s2[k] = scope[k];
+        s2[as] = list[i];
+        out = out.concat(processChildren(node, s2, vm));
+      }
+      return out;
+    }
+
+    // Fully static subtree (no bindings, no sc-*): clone as-is (fast, and keeps any namespaced nodes intact).
+    var html = node.outerHTML;
+    if (html.indexOf('{{') === -1 && !/<sc-(if|for)\b/i.test(html)) return [node.cloneNode(true)];
+
+    var el = document.createElement(node.tagName);
+    for (var a = 0; a < node.attributes.length; a++) {
+      var nm = node.attributes[a].name, val = node.attributes[a].value;
+      if (nm.indexOf('hint-placeholder') === 0) continue;
+      if (Object.prototype.hasOwnProperty.call(EVENTS, nm)) {
+        var fn = evalExpr(unwrap(val), scope, vm);
+        if (typeof fn === 'function') el.addEventListener(EVENTS[nm], fn);
+        continue;
+      }
+      var resolved = subst(val, scope, vm);
+      el.setAttribute(nm, resolved);
+      if (nm === 'value') el.value = resolved;
+    }
+    var kids = node.childNodes;
+    for (var c = 0; c < kids.length; c++) {
+      var pieces = processNode(kids[c], scope, vm);
+      for (var p = 0; p < pieces.length; p++) el.appendChild(pieces[p]);
+    }
+    return [el];
+  }
+
+  // Base class the logic extends: shallow-merge setState + re-render + persist hook.
+  window.DCLogic = function () {};
+  window.DCLogic.prototype.setState = function (patch) {
+    var next = (typeof patch === 'function') ? patch(this.state) : patch;
+    Object.assign(this.state, next);
+    if (this.__render) this.__render();
+    if (this.componentDidUpdate) this.componentDidUpdate();
+  };
+
+  window.mountDC = function (ComponentClass) {
+    var xdc = document.querySelector('x-dc');
+    var tplRoot = xdc.querySelector(':scope > div');   // the phone-frame app root
+    var template = tplRoot.cloneNode(true);             // pristine template, never mutated
+    var mount = document.createElement('div');
+    tplRoot.replaceWith(mount);
+    var app = new ComponentClass({});
+    app.__render = function () {
+      var vm = app.renderVals();
+      var nodes = processNode(template, {}, vm);
+      while (mount.firstChild) mount.removeChild(mount.firstChild);
+      for (var i = 0; i < nodes.length; i++) mount.appendChild(nodes[i]);
+    };
+    app.__render();
+    if (app.componentDidMount) app.componentDidMount();
+  };
+})();
+</script>
 </head>
 <body>
 <x-dc>
@@ -16,6 +124,21 @@
     body { margin: 0; background: #1A1511; -webkit-tap-highlight-color: transparent; }
     input { font-family: inherit; }
     @keyframes stampIn { from { transform: scale(1.5) rotate(-3deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
+
+    /* ---- shared style primitives (per-instance colors/padding/margins stay inline and override these) ---- */
+    /* Display face — Grenze Gotisch, mixed-case only (never ALL CAPS) */
+    .display { font-family: 'Grenze Gotisch', serif; }
+    .hero { font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; }
+    /* Kicker / eyebrow label — Oswald, uppercase, wide tracking; color set per screen (ink vs paper) */
+    .kicker { font-size: 13px; font-weight: 600; letter-spacing: 0.24em; }
+    /* Bold section labels (rules headings, policy-track labels) — same size, heavier weight */
+    .label-head { font-size: 13px; font-weight: 700; letter-spacing: 0.24em; }
+    .label-track { font-size: 13px; font-weight: 700; letter-spacing: 0.2em; }
+    /* Button base — fill/border/padding/tracking stay inline per variant */
+    .btn { text-align: center; font-size: 15px; font-weight: 700; cursor: pointer; user-select: none; }
+    /* Bordered panel and the 4px "stamp" card (role reveal / dossier) */
+    .panel { border: 3px solid #26201A; background: #EFE0C2; }
+    .stamp { border: 4px solid #F2E6CE; background: #EFE0C2; box-shadow: 8px 8px 0 rgba(0,0,0,0.45); }
   </style>
 </helmet>
 
@@ -36,38 +159,38 @@
             </div>
           </div>
         </div>
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 6px">{{ t.titleA }}<br>{{ t.titleB }}</div>
+        <div class="hero" style="margin-top: 6px;">{{ t.titleA }}<br>{{ t.titleB }}</div>
         <div style="margin-top: 10px; font-size: 15px; font-weight: 400; color: #6B5A43; line-height: 1.5;">{{ t.setupIntro }}</div>
       </div>
 
-      <div style="border: 3px solid #26201A; background: #EFE0C2; box-shadow: 6px 6px 0 #26201A; padding: 18px 20px;">
-        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.playersAtTable }}</div>
+      <div class="panel" style="box-shadow: 6px 6px 0 #26201A; padding: 18px 20px;">
+        <div class="kicker" style="color: #B4543B;">{{ t.playersAtTable }}</div>
         <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
           <div onClick="{{ dec }}" style="width: 58px; height: 58px; border: 3px solid #26201A; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600; cursor: pointer; user-select: none; background: #F2E6CE;">−</div>
-          <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 72px; line-height: 1; transform: translateY(-7px);">{{ count }}</div>
+          <div class="display" style="font-weight: 800; font-size: 72px; line-height: 1; transform: translateY(-7px);">{{ count }}</div>
           <div onClick="{{ inc }}" style="width: 58px; height: 58px; border: 3px solid #26201A; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600; cursor: pointer; user-select: none; background: #F2E6CE;">+</div>
         </div>
         <div style="text-align: center; margin-top: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #DD5126;">{{ roleSummary }}</div>
       </div>
 
       <div>
-        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B; margin-bottom: 10px;">{{ t.nameThePlayers }}</div>
+        <div class="kicker" style="color: #B4543B; margin-bottom: 10px;">{{ t.nameThePlayers }}</div>
         <div style="display: flex; gap: 10px;">
-          <div onClick="{{ namesOff }}" style="flex: 1; text-align: center; padding: 13px 0; border: 3px solid #26201A; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none; background: {{ noBg }}; color: {{ noFg }};">{{ t.noNumbers }}</div>
-          <div onClick="{{ namesOn }}" style="flex: 1; text-align: center; padding: 13px 0; border: 3px solid #26201A; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none; background: {{ yesBg }}; color: {{ yesFg }};">{{ t.yesNames }}</div>
+          <div onClick="{{ namesOff }}" class="btn" style="flex: 1; padding: 13px 0; border: 3px solid #26201A; letter-spacing: 0.16em; background: {{ noBg }}; color: {{ noFg }};">{{ t.noNumbers }}</div>
+          <div onClick="{{ namesOn }}" class="btn" style="flex: 1; padding: 13px 0; border: 3px solid #26201A; letter-spacing: 0.16em; background: {{ yesBg }}; color: {{ yesFg }};">{{ t.yesNames }}</div>
         </div>
         <sc-if value="{{ useNames }}" hint-placeholder-val="{{ false }}">
           <div style="margin-top: 14px; font-size: 15px; color: #6B5A43">{{ t.seatingNote }}</div>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
             <sc-for list="{{ nameInputs }}" as="inp" hint-placeholder-count="6">
-              <input value="{{ inp.value }}" onChange="{{ inp.onChange }}" placeholder="{{ inp.label }}" style="border: 3px solid #26201A; background: #EFE0C2; padding: 12px 12px; font-size: 15px; font-weight: 500; color: #26201A; outline: none; min-width: 0; border-radius: 0;">
+              <input value="{{ inp.value }}" onChange="{{ inp.onChange }}" placeholder="{{ inp.label }}" class="panel" style="padding: 12px 12px; font-size: 15px; font-weight: 500; color: #26201A; outline: none; min-width: 0; border-radius: 0;">
             </sc-for>
           </div>
         </sc-if>
       </div>
 
       <div style="margin-top: auto;">
-        <div onClick="{{ startGame }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 18px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; user-select: none; box-shadow: 5px 5px 0 rgba(38,32,26,0.25);">{{ t.dealRoles }}</div>
+        <div onClick="{{ startGame }}" class="btn" style="background: #26201A; color: #F2E6CE; padding: 18px 0; letter-spacing: 0.18em; box-shadow: 5px 5px 0 rgba(38,32,26,0.25);">{{ t.dealRoles }}</div>
       </div>
     </div>
   </sc-if>
@@ -75,31 +198,31 @@
   <!-- ============ DEAL GATE ============ -->
   <sc-if value="{{ isDealGate }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Deal Gate" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 32px 28px;">
-      <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">
+      <div class="kicker" style="display: flex; justify-content: space-between; color: #E8A03C;">
         <div>{{ t.dealingRoles }}</div>
         <div>{{ dealProgress }}</div>
       </div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px;">
-        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #9C8E76;">{{ t.passPhoneTo }}</div>
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 1; color: #F2E6CE">{{ dealName }}</div>
+        <div class="kicker" style="color: #9C8E76;">{{ t.passPhoneTo }}</div>
+        <div class="hero" style="line-height: 1; color: #F2E6CE;">{{ dealName }}</div>
         <div style="font-size: 15px; font-weight: 400; color: #D8CBAE; max-width: 280px; line-height: 1.5;">{{ t.dealGateSub }}</div>
       </div>
-      <div onClick="{{ showRole }}" style="border: 3px solid #E8A03C; color: #E8A03C; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ dealBtnLabel }}</div>
+      <div onClick="{{ showRole }}" class="btn" style="border: 3px solid #E8A03C; color: #E8A03C; padding: 17px 0; letter-spacing: 0.16em;">{{ dealBtnLabel }}</div>
     </div>
   </sc-if>
 
   <!-- ============ DEAL REVEAL ============ -->
   <sc-if value="{{ isDealReveal }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Role Reveal" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 26px;">
-      <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; letter-spacing: 0.24em;">
+      <div class="kicker" style="display: flex; justify-content: space-between;">
         <div style="color: #9C8E76;">{{ dealNameUp }}</div>
         <div style="color: #DD5126;">{{ t.eyesOnly }}</div>
       </div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px;">
-        <div style="border: 4px solid #F2E6CE; background: #EFE0C2; color: #26201A; box-shadow: 8px 8px 0 rgba(0,0,0,0.45); animation: stampIn 0.35s ease-out;">
+        <div class="stamp" style="color: #26201A; animation: stampIn 0.35s ease-out;">
           <div style="background: {{ roleBandBg }}; color: #F2E6CE; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.32em; border-bottom: 4px solid #26201A;">{{ t.secretRole }}</div>
           <div style="padding: 28px 20px 22px; text-align: center;">
-            <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; color: {{ roleColor }}; text-shadow: 3px 3px 0 {{ roleShadow }}">{{ roleWord }}</div>
+            <div class="hero" style="color: {{ roleColor }}; text-shadow: 3px 3px 0 {{ roleShadow }};">{{ roleWord }}</div>
             <div style="margin-top: 12px; font-size: 13px; font-weight: 500; letter-spacing: 0.14em; color: #6B5A43;">{{ partyLine }}</div>
           </div>
           <sc-if value="{{ hasIntel }}" hint-placeholder-val="{{ false }}">
@@ -115,26 +238,26 @@
         </div>
         <div style="text-align: center; font-size: 13px; font-weight: 500; letter-spacing: 0.1em; color: #9C8E76;">{{ memoLine }}</div>
       </div>
-      <div onClick="{{ hideAndPass }}" style="background: #F2E6CE; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.hidePass }}</div>
+      <div onClick="{{ hideAndPass }}" class="btn" style="background: #F2E6CE; color: #26201A; padding: 17px 0; letter-spacing: 0.16em;">{{ t.hidePass }}</div>
     </div>
   </sc-if>
 
   <!-- ============ NIGHT PHASE ============ -->
   <sc-if value="{{ isNight }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Night Phase" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.publicReadAloud }}</div>
-      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ t.nightTitle }}</div>
+      <div class="kicker" style="color: #B4543B;">{{ t.publicReadAloud }}</div>
+      <div class="hero" style="margin-top: 8px;">{{ t.nightTitle }}</div>
       <div style="margin-top: 8px; font-size: 15px; color: #6B5A43; line-height: 1.5;">{{ t.nightIntro }}</div>
       <div style="margin-top: 22px; display: flex; flex-direction: column; gap: 14px;">
         <sc-for list="{{ nightSteps }}" as="step" hint-placeholder-count="4">
           <div style="display: flex; gap: 14px; align-items: flex-start;">
-            <div style="width: 34px; height: 34px; flex: none; background: #26201A; color: #F2E6CE; display: flex; align-items: center; justify-content: center; font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 20px;">{{ step.n }}</div>
+            <div class="display" style="width: 34px; height: 34px; flex: none; background: #26201A; color: #F2E6CE; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px;">{{ step.n }}</div>
             <div style="font-size: 15px; font-weight: 500; line-height: 1.45; padding-top: 4px">{{ step.text }}</div>
           </div>
         </sc-for>
       </div>
       <div style="margin-top: auto; padding-top: 24px;">
-        <div onClick="{{ beginGame }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 18px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; user-select: none; box-shadow: 5px 5px 0 rgba(38,32,26,0.25);">{{ t.toFirstElection }}</div>
+        <div onClick="{{ beginGame }}" class="btn" style="background: #26201A; color: #F2E6CE; padding: 18px 0; letter-spacing: 0.18em; box-shadow: 5px 5px 0 rgba(38,32,26,0.25);">{{ t.toFirstElection }}</div>
       </div>
     </div>
   </sc-if>
@@ -143,7 +266,7 @@
   <sc-if value="{{ isDash }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Dashboard" style="flex: 1; display: flex; flex-direction: column;">
       <div style="background: #26201A; color: #F2E6CE; padding: 16px 22px 13px; display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 30px; line-height: 1;">{{ roundTitle }}</div>
+        <div class="display" style="font-weight: 700; font-size: 30px; line-height: 1;">{{ roundTitle }}</div>
         <div style="display: flex; align-items: center; gap: 14px;">
           <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.22em; color: #E8A03C;">{{ t.election }}</div>
           <div onClick="{{ openRules }}" style="width: 34px; height: 34px; border: 2px solid #E8A03C; color: #E8A03C; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; cursor: pointer; user-select: none">?</div>
@@ -151,11 +274,11 @@
       </div>
 
       <div style="padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 16px; flex: 1;">
-        <div style="border: 3px solid #26201A; background: #EFE0C2; padding: 12px 16px; box-shadow: 5px 5px 0 #26201A;">
+        <div class="panel" style="padding: 12px 16px; box-shadow: 5px 5px 0 #26201A;">
           <div style="display: flex; justify-content: space-between; align-items: stretch; gap: 12px;">
             <div>
-              <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B">{{ t.president }}</div>
-              <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 30px; line-height: 1.05;">{{ presName }}</div>
+              <div class="kicker" style="color: #B4543B;">{{ t.president }}</div>
+              <div class="display" style="font-weight: 700; font-size: 30px; line-height: 1.05;">{{ presName }}</div>
             </div>
             <div style="text-align: right; max-width: 55%; display: flex; flex-direction: column; justify-content: space-between;">
               <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.14em; color: #6B5A43">{{ t.notEligible }}</div>
@@ -166,7 +289,7 @@
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px;">
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #DD5126;">{{ t.fascistPolicies }}</div>
+            <div class="label-track" style="color: #DD5126;">{{ t.fascistPolicies }}</div>
             <div style="font-size: 13px; font-weight: 600;">{{ fas }} / 6</div>
           </div>
           <div style="display: flex; gap: 5px;">
@@ -178,7 +301,7 @@
 
         <div>
           <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px;">
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #46688B;">{{ t.liberalPolicies }}</div>
+            <div class="label-track" style="color: #46688B;">{{ t.liberalPolicies }}</div>
             <div style="font-size: 13px; font-weight: 600;">{{ lib }} / 5</div>
           </div>
           <div style="display: flex; gap: 5px;">
@@ -190,7 +313,7 @@
 
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
           <div>
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #6B5A43; margin-bottom: 6px;">{{ t.electionTracker }}</div>
+            <div class="label-track" style="color: #6B5A43; margin-bottom: 6px;">{{ t.electionTracker }}</div>
             <div style="display: flex; gap: 8px; align-items: center;">
               <sc-for list="{{ dots }}" as="dot" hint-placeholder-count="3">
                 <div style="width: 18px; height: 18px; border-radius: 50%; background: {{ dot.bg }}; border: 3px solid #26201A;"></div>
@@ -199,7 +322,7 @@
             </div>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.2em; color: #6B5A43; margin-bottom: 6px;">{{ t.deckWord }}</div>
+            <div class="label-track" style="color: #6B5A43; margin-bottom: 6px;">{{ t.deckWord }}</div>
             <div style="font-size: 11px; font-weight: 600; line-height: 1.5;">{{ deckLine1 }}<br>{{ deckLine2 }}</div>
           </div>
         </div>
@@ -216,8 +339,8 @@
         <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 6px;">
           <div style="text-align: center; font-size: 13px; font-weight: 500; color: #6B5A43; letter-spacing: 0.05em;">{{ dashInstr }}</div>
           <div style="display: flex; gap: 10px;">
-            <div onClick="{{ votePassed }}" style="flex: 1; background: #26201A; color: #F2E6CE; text-align: center; padding: 16px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.votePassed }}</div>
-            <div onClick="{{ voteFailed }}" style="flex: 1; background: #F2E6CE; border: 3px solid #26201A; color: #26201A; text-align: center; padding: 13px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.voteFailed }}</div>
+            <div onClick="{{ votePassed }}" class="btn" style="flex: 1; background: #26201A; color: #F2E6CE; padding: 16px 0; letter-spacing: 0.14em;">{{ t.votePassed }}</div>
+            <div onClick="{{ voteFailed }}" class="btn" style="flex: 1; background: #F2E6CE; border: 3px solid #26201A; color: #26201A; padding: 13px 0; letter-spacing: 0.14em;">{{ t.voteFailed }}</div>
           </div>
         </div>
       </div>
@@ -227,12 +350,12 @@
   <!-- ============ CHANCELLOR PICK ============ -->
   <sc-if value="{{ isChanPick }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Chancellor Pick" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.govElected }}</div>
-      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px">{{ t.chanPickA }}<br>{{ t.chanPickB }}</div>
+      <div class="kicker" style="color: #B4543B;">{{ t.govElected }}</div>
+      <div class="hero" style="margin-top: 8px;">{{ t.chanPickA }}<br>{{ t.chanPickB }}</div>
       <div style="margin-top: 10px; font-size: 15px; color: #6B5A43; line-height: 1.5;">{{ chanPickSub }}</div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px;">
         <sc-for list="{{ chanCandidates }}" as="cand" hint-placeholder-count="4">
-          <div onClick="{{ cand.pick }}" style="border: 3px solid #26201A; background: #EFE0C2; text-align: center; padding: 17px 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; user-select: none; box-shadow: 4px 4px 0 #26201A;">{{ cand.name }}</div>
+          <div onClick="{{ cand.pick }}" class="panel btn" style="padding: 17px 8px; letter-spacing: 0.06em; box-shadow: 4px 4px 0 #26201A;">{{ cand.name }}</div>
         </sc-for>
       </div>
       <sc-if value="{{ hasChanNote }}" hint-placeholder-val="{{ false }}">
@@ -244,13 +367,13 @@
   <!-- ============ GATE (shared) ============ -->
   <sc-if value="{{ isGate }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Pass Gate" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 32px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #DD5126;">{{ t.confidential }}</div>
+      <div class="kicker" style="color: #DD5126;">{{ t.confidential }}</div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px;">
-        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #9C8E76;">{{ t.passPhoneTo }}</div>
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 1">{{ gateName }}</div>
+        <div class="kicker" style="color: #9C8E76;">{{ t.passPhoneTo }}</div>
+        <div class="hero" style="line-height: 1;">{{ gateName }}</div>
         <div style="font-size: 15px; color: #D8CBAE; max-width: 290px; line-height: 1.5;">{{ gateSub }}</div>
       </div>
-      <div onClick="{{ gateGo }}" style="border: 3px solid #E8A03C; color: #E8A03C; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ gateBtn }}</div>
+      <div onClick="{{ gateGo }}" class="btn" style="border: 3px solid #E8A03C; color: #E8A03C; padding: 17px 0; letter-spacing: 0.16em;">{{ gateBtn }}</div>
     </div>
   </sc-if>
 
@@ -258,8 +381,8 @@
   <sc-if value="{{ isPresDraw }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="President Draw" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 24px;">
       <div style="text-align: center;">
-        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">{{ presKicker }}</div>
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px">{{ t.presDrawA }}<br>{{ t.presDrawB }}</div>
+        <div class="kicker" style="color: #E8A03C;">{{ presKicker }}</div>
+        <div class="hero" style="margin-top: 8px;">{{ t.presDrawA }}<br>{{ t.presDrawB }}</div>
         <sc-if value="{{ reshuffled }}" hint-placeholder-val="{{ false }}">
           <div style="margin-top: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.12em; color: #9C8E76;">{{ t.reshuffleNote }}</div>
         </sc-if>
@@ -273,7 +396,7 @@
         </sc-for>
       </div>
       <sc-if value="{{ canDiscard }}" hint-placeholder-val="{{ false }}">
-        <div onClick="{{ confirmDiscard }}" style="background: #E8A03C; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.discardSelected }}</div>
+        <div onClick="{{ confirmDiscard }}" class="btn" style="background: #E8A03C; color: #26201A; padding: 17px 0; letter-spacing: 0.16em;">{{ t.discardSelected }}</div>
       </sc-if>
       <sc-if value="{{ noDiscardSel }}" hint-placeholder-val="{{ false }}">
         <div style="border: 3px solid #6B5A43; color: #9C8E76; text-align: center; padding: 15px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.18em;">{{ t.tapToDiscard }}</div>
@@ -285,8 +408,8 @@
   <sc-if value="{{ isChanEnact }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Chancellor Enact" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 24px;">
       <div style="text-align: center;">
-        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">{{ chanKicker }}</div>
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px">{{ t.enactTitleA }}<br>{{ t.enactTitleB }}</div>
+        <div class="kicker" style="color: #E8A03C;">{{ chanKicker }}</div>
+        <div class="hero" style="margin-top: 8px;">{{ t.enactTitleA }}<br>{{ t.enactTitleB }}</div>
         <div style="margin-top: 8px; font-size: 15px; color: #9C8E76">{{ t.enactSub }}</div>
       </div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 0 10px;">
@@ -299,7 +422,7 @@
       </div>
       <div style="display: flex; flex-direction: column; gap: 10px;">
         <sc-if value="{{ canEnact }}" hint-placeholder-val="{{ false }}">
-          <div onClick="{{ confirmEnact }}" style="background: {{ enactBtnBg }}; color: {{ enactBtnFg }}; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ enactBtnLabel }}</div>
+          <div onClick="{{ confirmEnact }}" class="btn" style="background: {{ enactBtnBg }}; color: {{ enactBtnFg }}; padding: 17px 0; letter-spacing: 0.16em;">{{ enactBtnLabel }}</div>
         </sc-if>
         <sc-if value="{{ noEnactSel }}" hint-placeholder-val="{{ false }}">
           <div style="border: 3px solid #6B5A43; color: #9C8E76; text-align: center; padding: 15px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.18em;">{{ t.tapToEnact }}</div>
@@ -317,12 +440,12 @@
   <!-- ============ VETO ============ -->
   <sc-if value="{{ isVeto }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Veto" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.publicVeto }}</div>
-      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ t.vetoTitleA }}<br>{{ t.vetoTitleB }}</div>
+      <div class="kicker" style="color: #B4543B;">{{ t.publicVeto }}</div>
+      <div class="hero" style="margin-top: 8px;">{{ t.vetoTitleA }}<br>{{ t.vetoTitleB }}</div>
       <div style="margin-top: 14px; font-size: 15px; color: #6B5A43; line-height: 1.6;">{{ vetoBody }}</div>
       <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px;">
-        <div onClick="{{ vetoAgree }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.vetoAgreeBtn }}</div>
-        <div onClick="{{ vetoRefuse }}" style="border: 3px solid #26201A; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.vetoRefuseBtn }}</div>
+        <div onClick="{{ vetoAgree }}" class="btn" style="background: #26201A; color: #F2E6CE; padding: 17px 0; letter-spacing: 0.14em;">{{ t.vetoAgreeBtn }}</div>
+        <div onClick="{{ vetoRefuse }}" class="btn" style="border: 3px solid #26201A; padding: 14px 0; letter-spacing: 0.14em;">{{ t.vetoRefuseBtn }}</div>
       </div>
     </div>
   </sc-if>
@@ -330,9 +453,9 @@
   <!-- ============ POLICY RESULT ============ -->
   <sc-if value="{{ isPolicyResult }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Policy Result" style="flex: 1; display: flex; flex-direction: column; background: {{ resultBg }}; color: {{ resultFg }}; padding: 32px 26px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: {{ resultSub }};">{{ t.publicAnnouncement }}</div>
+      <div class="kicker" style="color: {{ resultSub }};">{{ t.publicAnnouncement }}</div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px;">
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.98">{{ resultTitle }}</div>
+        <div class="hero" style="line-height: 0.98;">{{ resultTitle }}</div>
         <div style="font-size: 15px; font-weight: 600; letter-spacing: 0.1em; color: {{ resultSub }}">{{ resultCounts }}</div>
         <sc-if value="{{ resultChaos }}" hint-placeholder-val="{{ false }}">
           <div style="border: 3px solid {{ resultFg }}; padding: 14px 16px; font-size: 13px; font-weight: 500; line-height: 1.5;">{{ t.chaosBox }}</div>
@@ -340,23 +463,23 @@
         <sc-if value="{{ hasPower }}" hint-placeholder-val="{{ false }}">
           <div style="border: 3px solid {{ resultFg }}; padding: 14px 16px;">
             <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.24em;">{{ t.powerUnlocked }}</div>
-            <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 30px; margin-top: 4px;">{{ resultPowerName }}</div>
+            <div class="display" style="font-weight: 700; font-size: 30px; margin-top: 4px;">{{ resultPowerName }}</div>
           </div>
         </sc-if>
       </div>
-      <div onClick="{{ resultContinue }}" style="background: {{ resultFg }}; color: {{ resultBg }}; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ resultBtnLabel }}</div>
+      <div onClick="{{ resultContinue }}" class="btn" style="background: {{ resultFg }}; color: {{ resultBg }}; padding: 17px 0; letter-spacing: 0.16em;">{{ resultBtnLabel }}</div>
     </div>
   </sc-if>
 
   <!-- ============ POWER PICK ============ -->
   <sc-if value="{{ isPowerPick }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Power Pick" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.presPowerPublic }}</div>
-      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ powerTitle }}</div>
+      <div class="kicker" style="color: #B4543B;">{{ t.presPowerPublic }}</div>
+      <div class="hero" style="margin-top: 8px;">{{ powerTitle }}</div>
       <div style="margin-top: 12px; font-size: 15px; color: #6B5A43; line-height: 1.55;">{{ powerDesc }}</div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px;">
         <sc-for list="{{ powerTargets }}" as="t2" hint-placeholder-count="4">
-          <div onClick="{{ t2.pick }}" style="border: 3px solid #26201A; background: #EFE0C2; text-align: center; padding: 17px 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; user-select: none; box-shadow: 4px 4px 0 #26201A">{{ t2.name }}</div>
+          <div onClick="{{ t2.pick }}" class="panel btn" style="padding: 17px 8px; letter-spacing: 0.06em; box-shadow: 4px 4px 0 #26201A;">{{ t2.name }}</div>
         </sc-for>
       </div>
     </div>
@@ -365,17 +488,17 @@
   <!-- ============ INVESTIGATION RESULT ============ -->
   <sc-if value="{{ isInvResult }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Investigation Result" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 26px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #DD5126;">{{ t.presEyesOnly }}</div>
+      <div class="kicker" style="color: #DD5126;">{{ t.presEyesOnly }}</div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px;">
-        <div style="font-size: 13px; letter-spacing: 0.24em; font-weight: 600; color: #9C8E76;">{{ t.dossierOn }}</div>
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 60px; line-height: 1">{{ invName }}</div>
-        <div style="border: 4px solid #F2E6CE; background: #EFE0C2; padding: 26px 34px; box-shadow: 8px 8px 0 rgba(0,0,0,0.45); animation: stampIn 0.35s ease-out;">
+        <div class="kicker" style="color: #9C8E76;">{{ t.dossierOn }}</div>
+        <div class="display" style="font-weight: 700; font-size: 60px; line-height: 1;">{{ invName }}</div>
+        <div class="stamp" style="padding: 26px 34px; animation: stampIn 0.35s ease-out;">
           <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.22em; color: #6B5A43">{{ t.partyMembership }}</div>
-          <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 1; color: {{ invPartyColor }}; text-shadow: 3px 3px 0 #26201A; margin-top: 6px">{{ invPartyWord }}</div>
+          <div class="hero" style="line-height: 1; color: {{ invPartyColor }}; text-shadow: 3px 3px 0 #26201A; margin-top: 6px;">{{ invPartyWord }}</div>
         </div>
         <div style="font-size: 15px; color: #9C8E76; max-width: 280px; line-height: 1.5">{{ t.invNote }}</div>
       </div>
-      <div onClick="{{ invDone }}" style="background: #F2E6CE; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.concealContinue }}</div>
+      <div onClick="{{ invDone }}" class="btn" style="background: #F2E6CE; color: #26201A; padding: 17px 0; letter-spacing: 0.16em;">{{ t.concealContinue }}</div>
     </div>
   </sc-if>
 
@@ -383,43 +506,43 @@
   <sc-if value="{{ isPeek }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Policy Peek" style="flex: 1; display: flex; flex-direction: column; background: #26201A; color: #F2E6CE; padding: 28px 24px;">
       <div style="text-align: center;">
-        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #E8A03C;">{{ presKicker }}</div>
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 42px; line-height: 0.95; margin-top: 8px;">{{ t.peekA }}</div>
+        <div class="kicker" style="color: #E8A03C;">{{ presKicker }}</div>
+        <div class="display" style="font-weight: 800; font-size: 42px; line-height: 0.95; margin-top: 8px;">{{ t.peekA }}</div>
         <div style="margin-top: 8px; font-size: 13px; color: #9C8E76;">{{ t.peekSub }}</div>
       </div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 0 10px;">
         <sc-for list="{{ peekCards }}" as="card" hint-placeholder-count="3">
           <div style="background: {{ card.bg }}; border: 4px solid #F2E6CE; box-shadow: 5px 5px 0 rgba(0,0,0,0.4); display: flex; align-items: center; gap: 16px; padding: 18px 20px;">
-            <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 30px; color: {{ card.fg }};">{{ card.n }}</div>
+            <div class="display" style="font-weight: 800; font-size: 30px; color: {{ card.fg }};">{{ card.n }}</div>
             <div style="width: 28px; height: 28px; background: {{ card.symBg }}; border-radius: {{ card.symBR }}; transform: {{ card.symTr }};"></div>
             <div style="font-size: 15px; font-weight: 700; letter-spacing: 0.18em; color: {{ card.fg }};">{{ card.kindWord }}</div>
           </div>
         </sc-for>
       </div>
-      <div onClick="{{ peekDone }}" style="background: #F2E6CE; color: #26201A; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.concealContinue }}</div>
+      <div onClick="{{ peekDone }}" class="btn" style="background: #F2E6CE; color: #26201A; padding: 17px 0; letter-spacing: 0.16em;">{{ t.concealContinue }}</div>
     </div>
   </sc-if>
 
   <!-- ============ EXECUTION RESULT ============ -->
   <sc-if value="{{ isExecResult }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Execution Result" style="flex: 1; display: flex; flex-direction: column; padding: 32px 26px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: #B4543B;">{{ t.publicAnnouncement }}</div>
+      <div class="kicker" style="color: #B4543B;">{{ t.publicAnnouncement }}</div>
       <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px;">
-        <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95;">{{ execName }}<br>{{ t.execVerb }}</div>
+        <div class="hero">{{ execName }}<br>{{ t.execVerb }}</div>
         <div style="font-size: 15px; color: #6B5A43; line-height: 1.6;">{{ t.execBody }}</div>
       </div>
-      <div onClick="{{ execDone }}" style="background: #26201A; color: #F2E6CE; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.16em; cursor: pointer; user-select: none;">{{ t.nextRoundBtn }}</div>
+      <div onClick="{{ execDone }}" class="btn" style="background: #26201A; color: #F2E6CE; padding: 17px 0; letter-spacing: 0.16em;">{{ t.nextRoundBtn }}</div>
     </div>
   </sc-if>
 
   <!-- ============ GAME OVER ============ -->
   <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Game Over" style="flex: 1; display: flex; flex-direction: column; background: {{ overBg }}; color: {{ overFg }}; padding: 30px 26px 28px;">
-      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: {{ overSub }};">{{ t.gameOverKicker }}</div>
-      <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px; line-height: 0.95; margin-top: 8px;">{{ overTitle }}</div>
+      <div class="kicker" style="color: {{ overSub }};">{{ t.gameOverKicker }}</div>
+      <div class="hero" style="margin-top: 8px;">{{ overTitle }}</div>
       <div style="margin-top: 10px; font-size: 15px; font-weight: 500; line-height: 1.5; color: {{ overSub }};">{{ overReason }}</div>
       <div style="margin-top: 20px; border: 4px solid {{ overFg }}; background: #F2E6CE; color: #26201A;">
-        <div style="padding: 10px 16px; border-bottom: 3px solid #26201A; font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #B4543B;">{{ t.rolesRevealed }}</div>
+        <div class="label-head" style="padding: 10px 16px; border-bottom: 3px solid #26201A; color: #B4543B;">{{ t.rolesRevealed }}</div>
         <div style="display: flex; flex-direction: column;">
           <sc-for list="{{ revealRows }}" as="row" hint-placeholder-count="7">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 16px; border-bottom: 1px solid rgba(38,32,26,0.2);">
@@ -428,15 +551,15 @@
                 <sc-if value="{{ row.dead }}" hint-placeholder-val="{{ false }}">
                   <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: #6B5A43;">{{ t.executedTag }}</div>
                 </sc-if>
-                <div style="font-family: 'Grenze Gotisch', serif; font-weight: 700; font-size: 21px; color: {{ row.roleColor }};">{{ row.roleWord }}</div>
+                <div class="display" style="font-weight: 700; font-size: 21px; color: {{ row.roleColor }};">{{ row.roleWord }}</div>
               </div>
             </div>
           </sc-for>
         </div>
       </div>
       <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding-top: 20px;">
-        <div onClick="{{ playAgain }}" style="background: {{ overFg }}; color: {{ overBg }}; text-align: center; padding: 17px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.newGameSame }}</div>
-        <div onClick="{{ toSetup }}" style="border: 3px solid {{ overFg }}; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.14em; cursor: pointer; user-select: none;">{{ t.backToSetup }}</div>
+        <div onClick="{{ playAgain }}" class="btn" style="background: {{ overFg }}; color: {{ overBg }}; padding: 17px 0; letter-spacing: 0.14em;">{{ t.newGameSame }}</div>
+        <div onClick="{{ toSetup }}" class="btn" style="border: 3px solid {{ overFg }}; padding: 14px 0; letter-spacing: 0.14em;">{{ t.backToSetup }}</div>
       </div>
     </div>
   </sc-if>
@@ -446,25 +569,25 @@
     <div data-screen-label="Rules" style="position: fixed; inset: 0; z-index: 50; background: rgba(20,16,12,0.6); display: flex; justify-content: center;">
       <div style="width: 100%; max-width: 430px; background: #26201A; color: #F2E6CE; overflow-y: auto; padding: 26px 26px 32px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 60px">{{ t.rulesTitle }}</div>
+          <div class="hero">{{ t.rulesTitle }}</div>
           <div onClick="{{ closeRules }}" style="width: 40px; height: 40px; border: 2px solid #E8A03C; color: #E8A03C; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; user-select: none;">✕</div>
         </div>
 
         <div style="margin-top: 18px; display: flex; flex-direction: column; gap: 20px; font-size: 15px; line-height: 1.6; font-weight: 400; color: #D8CBAE;">
           <div>
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesThisTable }}</div>
+            <div class="label-head" style="color: #E8A03C; margin-bottom: 6px;">{{ t.rulesThisTable }}</div>
             <div>{{ rulesRoleLine }}</div>
           </div>
           <div>
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesEachRound }}</div>
+            <div class="label-head" style="color: #E8A03C; margin-bottom: 6px;">{{ t.rulesEachRound }}</div>
             <div>{{ t.rulesRound1 }}<br>{{ t.rulesRound2 }}<br>{{ t.rulesRound3 }}</div>
           </div>
           <div>
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesTermH }}</div>
+            <div class="label-head" style="color: #E8A03C; margin-bottom: 6px;">{{ t.rulesTermH }}</div>
             <div>{{ t.rulesTerm }}</div>
           </div>
           <div>
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ rulesPowersH }}</div>
+            <div class="label-head" style="color: #E8A03C; margin-bottom: 6px;">{{ rulesPowersH }}</div>
             <div style="display: flex; flex-direction: column; gap: 4px;">
               <sc-for list="{{ rulesPowers }}" as="rp" hint-placeholder-count="4">
                 <div><span style="color: #DD5126; font-weight: 600;">{{ t.policyWord }} {{ rp.slot }}</span> — {{ rp.text }}</div>
@@ -472,15 +595,15 @@
             </div>
           </div>
           <div>
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesVetoH }}</div>
+            <div class="label-head" style="color: #E8A03C; margin-bottom: 6px;">{{ t.rulesVetoH }}</div>
             <div>{{ t.rulesVeto }}</div>
           </div>
           <div>
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.rulesEndH }}</div>
+            <div class="label-head" style="color: #E8A03C; margin-bottom: 6px;">{{ t.rulesEndH }}</div>
             <div>{{ t.rulesEnd1 }}<br>{{ t.rulesEnd2 }}</div>
           </div>
           <div style="border-top: 1px solid rgba(232,160,60,0.35); padding-top: 18px;">
-            <div style="font-size: 13px; font-weight: 700; letter-spacing: 0.24em; color: #E8A03C; margin-bottom: 6px;">{{ t.creditsH }}</div>
+            <div class="label-head" style="color: #E8A03C; margin-bottom: 6px;">{{ t.creditsH }}</div>
             <div style="font-size: 13px; line-height: 1.6; color: #9C8E76;">{{ t.creditsBody }}</div>
             <div style="display: flex; flex-direction: column; gap: 3px; margin-top: 10px;">
               <a href="https://www.secrethitler.com" target="_blank" rel="noopener" style="font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: #E8A03C; text-decoration: none;">secrethitler.com</a>
@@ -488,7 +611,7 @@
             </div>
           </div>
           <div style="border-top: 1px solid rgba(232,160,60,0.35); padding-top: 18px;">
-            <div onClick="{{ abandon }}" style="border: 2px solid #DD5126; color: #DD5126; text-align: center; padding: 13px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.18em; cursor: pointer; user-select: none">{{ t.abandonBtn }}</div>
+            <div onClick="{{ abandon }}" class="btn" style="border: 2px solid #DD5126; color: #DD5126; padding: 13px 0; letter-spacing: 0.18em;">{{ t.abandonBtn }}</div>
           </div>
         </div>
       </div>
@@ -498,7 +621,7 @@
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script>
+<script>
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -1323,6 +1446,7 @@ class Component extends DCLogic {
     return vals;
   }
 }
+mountDC(Component);
 </script>
 </body>
 </html>
