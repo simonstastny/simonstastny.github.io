@@ -11,103 +11,118 @@
    the original proprietary DC runtime, no behaviour change.
    ============================================================ */
 (function () {
-  function resolve(name, scope, vm) {
-    return Object.prototype.hasOwnProperty.call(scope, name) ? scope[name] : vm[name];
+  // Look a name up first in the local loop scope, then in the component's view model.
+  function resolveName(name, scope, viewModel) {
+    return Object.prototype.hasOwnProperty.call(scope, name) ? scope[name] : viewModel[name];
   }
   // Bindings are only simple paths ("a", "a.b.c") or the literals true/false.
-  function evalExpr(expr, scope, vm) {
-    expr = expr.trim();
-    if (expr === 'true') return true;
-    if (expr === 'false') return false;
-    var parts = expr.split('.');
-    var v = resolve(parts[0], scope, vm);
-    for (var i = 1; i < parts.length; i++) v = (v == null) ? undefined : v[parts[i]];
-    return v;
+  function evaluateExpression(expression, scope, viewModel) {
+    expression = expression.trim();
+    if (expression === 'true') return true;
+    if (expression === 'false') return false;
+    var pathSegments = expression.split('.');
+    var value = resolveName(pathSegments[0], scope, viewModel);
+    for (var depth = 1; depth < pathSegments.length; depth++) {
+      value = (value == null) ? undefined : value[pathSegments[depth]];
+    }
+    return value;
   }
   // Extract the expression from a single-binding attribute value, e.g. "{{ isSetup }}" -> "isSetup".
-  function unwrap(s) { return (s || '').replace(/[{}]/g, '').trim(); }
-  function subst(text, scope, vm) {
-    return text.replace(/{{\s*([^}]+?)\s*}}/g, function (_, e) {
-      var v = evalExpr(e, scope, vm);
-      return v == null ? '' : String(v);
+  function unwrapBinding(attributeValue) {
+    return (attributeValue || '').replace(/[{}]/g, '').trim();
+  }
+  // Replace every {{ ... }} inside a string of text with its evaluated value.
+  function interpolate(text, scope, viewModel) {
+    return text.replace(/{{\s*([^}]+?)\s*}}/g, function (fullMatch, expression) {
+      var value = evaluateExpression(expression, scope, viewModel);
+      return value == null ? '' : String(value);
     });
   }
-  var EVENTS = { onclick: 'click', onchange: 'change' };
+  var DOM_EVENT_BY_ATTRIBUTE = { onclick: 'click', onchange: 'change' };
 
-  function processChildren(node, scope, vm) {
-    var out = [], kids = node.childNodes;
-    for (var i = 0; i < kids.length; i++) out = out.concat(processNode(kids[i], scope, vm));
-    return out;
+  function renderChildren(node, scope, viewModel) {
+    var renderedNodes = [];
+    var childNodeList = node.childNodes;
+    for (var index = 0; index < childNodeList.length; index++) {
+      renderedNodes = renderedNodes.concat(renderNode(childNodeList[index], scope, viewModel));
+    }
+    return renderedNodes;
   }
-  // Returns an array of DOM nodes.
-  function processNode(node, scope, vm) {
-    if (node.nodeType === 3) return [document.createTextNode(subst(node.nodeValue, scope, vm))];
-    if (node.nodeType !== 1) return [];
-    var tag = node.tagName.toLowerCase();
+  // Render one template node into an array of real DOM nodes.
+  function renderNode(node, scope, viewModel) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return [document.createTextNode(interpolate(node.nodeValue, scope, viewModel))];
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
+    var tagName = node.tagName.toLowerCase();
 
-    if (tag === 'sc-if')
-      return evalExpr(unwrap(node.getAttribute('value')), scope, vm) ? processChildren(node, scope, vm) : [];
+    if (tagName === 'sc-if') {
+      return evaluateExpression(unwrapBinding(node.getAttribute('value')), scope, viewModel)
+        ? renderChildren(node, scope, viewModel)
+        : [];
+    }
 
-    if (tag === 'sc-for') {
-      var list = evalExpr(unwrap(node.getAttribute('list')), scope, vm) || [];
-      var as = node.getAttribute('as'), out = [];
-      for (var i = 0; i < list.length; i++) {
-        var s2 = {};
-        for (var k in scope) if (Object.prototype.hasOwnProperty.call(scope, k)) s2[k] = scope[k];
-        s2[as] = list[i];
-        out = out.concat(processChildren(node, s2, vm));
+    if (tagName === 'sc-for') {
+      var items = evaluateExpression(unwrapBinding(node.getAttribute('list')), scope, viewModel) || [];
+      var itemName = node.getAttribute('as');
+      var renderedItems = [];
+      for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        var loopScope = {};
+        for (var outerName in scope) {
+          if (Object.prototype.hasOwnProperty.call(scope, outerName)) loopScope[outerName] = scope[outerName];
+        }
+        loopScope[itemName] = items[itemIndex];
+        renderedItems = renderedItems.concat(renderChildren(node, loopScope, viewModel));
       }
-      return out;
+      return renderedItems;
     }
 
     // Fully static subtree (no bindings, no sc-*): clone as-is (fast, and keeps any namespaced nodes intact).
-    var html = node.outerHTML;
-    if (html.indexOf('{{') === -1 && !/<sc-(if|for)\b/i.test(html)) return [node.cloneNode(true)];
+    var outerHtml = node.outerHTML;
+    if (outerHtml.indexOf('{{') === -1 && !/<sc-(if|for)\b/i.test(outerHtml)) return [node.cloneNode(true)];
 
-    var el = document.createElement(node.tagName);
-    for (var a = 0; a < node.attributes.length; a++) {
-      var nm = node.attributes[a].name, val = node.attributes[a].value;
-      if (nm.indexOf('hint-placeholder') === 0) continue;
-      if (Object.prototype.hasOwnProperty.call(EVENTS, nm)) {
-        var fn = evalExpr(unwrap(val), scope, vm);
-        if (typeof fn === 'function') el.addEventListener(EVENTS[nm], fn);
+    var element = document.createElement(node.tagName);
+    for (var attrIndex = 0; attrIndex < node.attributes.length; attrIndex++) {
+      var attributeName = node.attributes[attrIndex].name;
+      var attributeValue = node.attributes[attrIndex].value;
+      if (attributeName.indexOf('hint-placeholder') === 0) continue;
+      if (Object.prototype.hasOwnProperty.call(DOM_EVENT_BY_ATTRIBUTE, attributeName)) {
+        var handler = evaluateExpression(unwrapBinding(attributeValue), scope, viewModel);
+        if (typeof handler === 'function') element.addEventListener(DOM_EVENT_BY_ATTRIBUTE[attributeName], handler);
         continue;
       }
-      var resolved = subst(val, scope, vm);
-      el.setAttribute(nm, resolved);
-      if (nm === 'value') el.value = resolved;
+      var resolvedValue = interpolate(attributeValue, scope, viewModel);
+      element.setAttribute(attributeName, resolvedValue);
+      if (attributeName === 'value') element.value = resolvedValue;
     }
-    var kids = node.childNodes;
-    for (var c = 0; c < kids.length; c++) {
-      var pieces = processNode(kids[c], scope, vm);
-      for (var p = 0; p < pieces.length; p++) el.appendChild(pieces[p]);
-    }
-    return [el];
+    renderChildren(node, scope, viewModel).forEach(function (child) { element.appendChild(child); });
+    return [element];
   }
 
   // Base class the logic extends: shallow-merge setState + re-render + persist hook.
   window.DCLogic = function () {};
-  window.DCLogic.prototype.setState = function (patch) {
-    var next = (typeof patch === 'function') ? patch(this.state) : patch;
-    Object.assign(this.state, next);
-    if (this.__render) this.__render();
+  window.DCLogic.prototype.setState = function (patch, callback) {
+    var nextState = (typeof patch === 'function') ? patch(this.state) : patch;
+    Object.assign(this.state, nextState);
+    if (this.rerender) this.rerender();
     if (this.componentDidUpdate) this.componentDidUpdate();
+    if (typeof callback === 'function') callback();
   };
 
   window.mountDC = function (ComponentClass) {
-    var xdc = document.querySelector('x-dc');
-    var tplRoot = xdc.querySelector(':scope > div');   // the phone-frame app root
-    var template = tplRoot.cloneNode(true);             // pristine template, never mutated
-    var mount = document.createElement('div');
-    tplRoot.replaceWith(mount);
+    var rootElement = document.querySelector('x-dc');
+    var appRoot = rootElement.querySelector(':scope > div');   // the phone-frame app root
+    var template = appRoot.cloneNode(true);                    // pristine template, never mutated
+    var mountPoint = document.createElement('div');
+    appRoot.replaceWith(mountPoint);
     var app = new ComponentClass({});
-    app.__render = function () {
-      var vm = app.renderVals();
-      var nodes = processNode(template, {}, vm);
-      while (mount.firstChild) mount.removeChild(mount.firstChild);
-      for (var i = 0; i < nodes.length; i++) mount.appendChild(nodes[i]);
+    app.rerender = function () {
+      var viewModel = app.renderVals();
+      var renderedNodes = renderNode(template, {}, viewModel);
+      while (mountPoint.firstChild) mountPoint.removeChild(mountPoint.firstChild);
+      renderedNodes.forEach(function (renderedNode) { mountPoint.appendChild(renderedNode); });
     };
-    app.__render();
+    app.rerender();
     if (app.componentDidMount) app.componentDidMount();
   };
 })();
@@ -656,20 +671,20 @@ class Component extends DCLogic {
         noNumbers: 'NO — NUMBERS', yesNames: 'YES — NAMES',
         seatingNote: 'Enter names in seating order, clockwise around the table.',
         dealRoles: 'DEAL THE ROLES',
-        playerName: n => 'Player ' + n,
-        roleSummary: (l, f) => l + ' LIBERALS · ' + f + ' FASCIST' + (f > 1 ? 'S' : '') + ' · 1 HITLER',
+        playerName: number => 'Player ' + number,
+        roleSummary: (liberals, fascists) => liberals + ' LIBERALS · ' + fascists + ' FASCIST' + (fascists > 1 ? 'S' : '') + ' · 1 HITLER',
         dealingRoles: 'DEALING ROLES',
-        dealProgress: (n, m) => n + ' OF ' + m,
+        dealProgress: (current, total) => current + ' OF ' + total,
         passPhoneTo: 'PASS THE PHONE TO',
         dealGateSub: 'When no one else can see the screen, reveal your secret role.',
-        dealBtn: n => 'I AM ' + n.toUpperCase() + ' — REVEAL',
+        dealBtn: name => 'I AM ' + name.toUpperCase() + ' — REVEAL',
         eyesOnly: 'EYES ONLY',
         secretRole: 'SECRET ROLE',
-        partyLine: isLib => 'PARTY MEMBERSHIP: ' + (isLib ? 'LIBERAL' : 'FASCIST'),
+        partyLine: isLiberal => 'PARTY MEMBERSHIP: ' + (isLiberal ? 'LIBERAL' : 'FASCIST'),
         conspirators: 'YOUR FELLOW CONSPIRATORS', conspirator: 'YOUR CONSPIRATOR', standAlone: 'YOU STAND ALONE',
-        fasLine: ns => (ns.length > 1 ? 'Fascists: ' : 'Fascist: ') + ns.join(', '),
-        hitlerIs: n => 'Hitler: ' + n,
-        yourFascist: ns => 'Your fascist is ' + ns,
+        fasLine: names => (names.length > 1 ? 'Fascists: ' : 'Fascist: ') + names.join(', '),
+        hitlerIs: name => 'Hitler: ' + name,
+        yourFascist: name => 'Your fascist is ' + name,
         hitlerAlone: 'You do not know your fascists — but they know you.',
         memoFas: 'MEMORIZE IT. TRUST NO ONE.', memoLib: 'FIND HITLER. SAVE THE REPUBLIC.',
         hidePass: 'HIDE & PASS THE PHONE',
@@ -689,7 +704,7 @@ class Component extends DCLogic {
           'Fascists close eyes, Hitler lowers thumb. Then everyone — open your eyes.'
         ],
         toFirstElection: 'TO THE FIRST ELECTION',
-        roundTitle: n => 'Round ' + n,
+        roundTitle: number => 'Round ' + number,
         election: 'ELECTION',
         president: 'PRESIDENT',
         notEligible: 'NOT ELIGIBLE AS CHANCELLOR',
@@ -698,52 +713,52 @@ class Component extends DCLogic {
         electionTracker: 'ELECTION TRACKER',
         trackerNote3: '3 FAILS = CHAOS', trackerNote1: 'ONE MORE = CHAOS',
         deckWord: 'DECK',
-        deckLine1: d => d + ' TO DRAW',
-        deckLine2: x => x + ' DISCARDED',
+        deckLine1: drawCount => drawCount + ' TO DRAW',
+        deckLine2: discardCount => discardCount + ' DISCARDED',
         theTable: 'THE TABLE',
-        dashInstr: n => n.toUpperCase() + ' NOMINATES A CHANCELLOR. VOTE OUT LOUD, THEN RECORD:',
+        dashInstr: presidentName => presidentName.toUpperCase() + ' NOMINATES A CHANCELLOR. VOTE OUT LOUD, THEN RECORD:',
         votePassed: 'VOTE PASSED', voteFailed: 'VOTE FAILED',
         govElected: 'GOVERNMENT ELECTED',
         chanPickA: 'Who is', chanPickB: 'Chancellor?',
-        chanPickSub: p => 'Tap the player the table just elected alongside President ' + p + '.',
+        chanPickSub: presidentName => 'Tap the player the table just elected alongside President ' + presidentName + '.',
         termLimitedNote: 'Term-limited and not shown:',
         confidential: 'CONFIDENTIAL',
         gateSubs: {
           gpPres: () => "President's eyes only — the top three policies of the deck await.",
           gpChan: () => "Chancellor's eyes only — choose which of the two policies becomes law.",
           gpPeek: () => "President's eyes only — a glimpse of the next three policies.",
-          gpInv: n => "President's eyes only — the party membership of " + n + '.'
+          gpInv: name => "President's eyes only — the party membership of " + name + '.'
         },
         gateBtns: { gbReveal: 'REVEAL THE POLICIES', gbPeek: 'SHOW THE TOP THREE', gbDossier: 'OPEN THE DOSSIER' },
-        presKicker: n => 'PRESIDENT ' + n.toUpperCase() + ' — EYES ONLY',
-        chanKicker: n => 'CHANCELLOR ' + n.toUpperCase() + ' — EYES ONLY',
+        presKicker: name => 'PRESIDENT ' + name.toUpperCase() + ' — EYES ONLY',
+        chanKicker: name => 'CHANCELLOR ' + name.toUpperCase() + ' — EYES ONLY',
         presDrawA: 'Draw three.', presDrawB: 'Discard one.',
         reshuffleNote: 'THE DISCARD PILE WAS SHUFFLED BACK INTO THE DECK',
         discardSelected: 'DISCARD THE SELECTED POLICY',
         tapToDiscard: 'TAP THE POLICY TO DISCARD',
         enactTitleA: 'Two policies.', enactTitleB: 'Enact one.',
         enactSub: 'The other is discarded face-down. Say nothing.',
-        enactBtn: w => 'ENACT THE ' + w + ' POLICY',
+        enactBtn: partyWord => 'ENACT THE ' + partyWord + ' POLICY',
         tapToEnact: 'TAP THE POLICY TO ENACT',
         proposeVeto: 'PROPOSE THE VETO',
         vetoRefusedNote: 'VETO REFUSED — YOU MUST ENACT A POLICY',
         publicVeto: 'PUBLIC — VETO POWER',
         vetoTitleA: 'The veto', vetoTitleB: 'is proposed.',
-        vetoBody: (c, p) => 'Chancellor ' + c + ' wishes to discard both policies. President ' + p + ', do you consent? If you do, the election tracker advances by one.',
+        vetoBody: (chancellorName, presidentName) => 'Chancellor ' + chancellorName + ' wishes to discard both policies. President ' + presidentName + ', do you consent? If you do, the election tracker advances by one.',
         vetoAgreeBtn: 'I CONSENT — DISCARD BOTH',
         vetoRefuseBtn: 'I REFUSE — THE CHANCELLOR MUST ENACT',
         publicAnnouncement: 'PUBLIC ANNOUNCEMENT',
-        resultTitle: F => F ? 'A Fascist policy is enacted.' : 'A Liberal policy is enacted.',
-        resultCounts: (F, fas, lib) => F ? 'FASCIST POLICIES: ' + fas + ' OF 6' : 'LIBERAL POLICIES: ' + lib + ' OF 5',
+        resultTitle: isFascist => isFascist ? 'A Fascist policy is enacted.' : 'A Liberal policy is enacted.',
+        resultCounts: (isFascist, fascistCount, liberalCount) => isFascist ? 'FASCIST POLICIES: ' + fascistCount + ' OF 6' : 'LIBERAL POLICIES: ' + liberalCount + ' OF 5',
         chaosBox: 'Three failed elections — the frustrated populace enacted the top policy of the deck on its own. No power is granted. Term limits are forgotten.',
         powerUnlocked: 'POWER UNLOCKED',
         unlockPower: 'UNLOCK THE POWER', nextRoundBtn: 'TO THE NEXT ROUND',
         presPowerPublic: 'PRESIDENTIAL POWER — PUBLIC CHOICE',
         powerNames: { peek: 'Policy Peek', investigate: 'Investigate Loyalty', special: 'Special Election', execute: 'Execution' },
         powerDescs: {
-          investigate: n => 'President ' + n + ' — choose a player to investigate. You alone will see their party membership. Each player may only be investigated once per game.',
-          special: n => 'President ' + n + ' — choose any player to become the next presidential candidate. Afterwards, the rotation resumes where it left off.',
-          execute: n => 'President ' + n + ' — choose a player to execute. If they are Hitler, the Liberals win on the spot. Choose well.'
+          investigate: name => 'President ' + name + ' — choose a player to investigate. You alone will see their party membership. Each player may only be investigated once per game.',
+          special: name => 'President ' + name + ' — choose any player to become the next presidential candidate. Afterwards, the rotation resumes where it left off.',
+          execute: name => 'President ' + name + ' — choose a player to execute. If they are Hitler, the Liberals win on the spot. Choose well.'
         },
         slotLabels: { investigate: 'INVESTIGATE LOYALTY', peek: 'POLICY PEEK', special: 'SPECIAL ELECTION', execute: 'EXECUTION' },
         winSlot: 'WIN',
@@ -762,8 +777,8 @@ class Component extends DCLogic {
         winReasons: {
           libPolicies: () => 'Five Liberal policies have been enacted. The Republic stands.',
           fasPolicies: () => 'Six Fascist policies have been enacted. The Republic falls.',
-          hitlerChan: n => n + ' is Hitler — and the table elected him Chancellor with three Fascist policies on the board.',
-          hitlerShot: n => n + ' was Hitler. The bullet found its mark.'
+          hitlerChan: name => name + ' is Hitler — and the table elected him Chancellor with three Fascist policies on the board.',
+          hitlerShot: name => name + ' was Hitler. The bullet found its mark.'
         },
         rolesRevealed: 'THE ROLES, REVEALED',
         executedTag: 'EXECUTED',
@@ -773,14 +788,14 @@ class Component extends DCLogic {
         backToSetup: 'BACK TO SETUP',
         rulesTitle: 'The Rules',
         rulesThisTable: 'THIS TABLE',
-        rulesRoleLine: (rc, rl, rf) => rc + ' players: ' + rl + ' Liberals, ' + rf + ' Fascist' + (rf > 1 ? 's' : '') + ' and Hitler. ' + (rc <= 6 ? 'Hitler knows his fascist.' : 'Hitler does not know the fascists — they know him.'),
+        rulesRoleLine: (playerCount, liberalCount, fascistCount) => playerCount + ' players: ' + liberalCount + ' Liberals, ' + fascistCount + ' Fascist' + (fascistCount > 1 ? 's' : '') + ' and Hitler. ' + (playerCount <= 6 ? 'Hitler knows his fascist.' : 'Hitler does not know the fascists — they know him.'),
         rulesEachRound: 'EACH ROUND',
         rulesRound1: '1 — The President nominates a Chancellor out loud. Everyone votes yes or no, out loud.',
         rulesRound2: '2 — If elected, the President draws three policies, discards one, and the Chancellor enacts one of the remaining two.',
         rulesRound3: '3 — If the vote fails, the election tracker advances. At three, the top policy of the deck is enacted by the angry mob.',
         rulesTermH: 'TERM LIMITS',
         rulesTerm: 'The last elected President and Chancellor may not be nominated as Chancellor. With five or fewer players alive, only the last Chancellor is barred.',
-        rulesPowersH: n => 'FASCIST TRACK POWERS (' + n + ' PLAYERS)',
+        rulesPowersH: playerCount => 'FASCIST TRACK POWERS (' + playerCount + ' PLAYERS)',
         policyWord: 'Policy',
         rulesVetoH: 'THE VETO',
         rulesVeto: 'Once five Fascist policies are enacted, the Chancellor may propose discarding both policies. If the President consents, nothing is enacted and the election tracker advances.',
@@ -801,20 +816,20 @@ class Component extends DCLogic {
         noNumbers: 'NE — ČÍSLA', yesNames: 'ANO — JMÉNA',
         seatingNote: 'Zadej jména v pořadí, jak sedíte u stolu, po směru hodinových ručiček.',
         dealRoles: 'ROZDAT ROLE',
-        playerName: n => 'Hráč ' + n,
-        roleSummary: (l, f) => l + (l <= 4 ? ' LIBERÁLOVÉ' : ' LIBERÁLŮ') + ' · ' + f + (f === 1 ? ' FAŠISTA' : ' FAŠISTÉ') + ' · 1 HITLER',
+        playerName: number => 'Hráč ' + number,
+        roleSummary: (liberals, fascists) => liberals + (liberals <= 4 ? ' LIBERÁLOVÉ' : ' LIBERÁLŮ') + ' · ' + fascists + (fascists === 1 ? ' FAŠISTA' : ' FAŠISTÉ') + ' · 1 HITLER',
         dealingRoles: 'ROZDÁVÁNÍ ROLÍ',
-        dealProgress: (n, m) => n + ' Z ' + m,
+        dealProgress: (current, total) => current + ' Z ' + total,
         passPhoneTo: 'TELEFON DOSTÁVÁ',
         dealGateSub: 'Až na obrazovku neuvidí nikdo jiný, odhal svou tajnou roli.',
-        dealBtn: n => 'JSEM ' + n.toUpperCase() + ' — ODHALIT',
+        dealBtn: name => 'JSEM ' + name.toUpperCase() + ' — ODHALIT',
         eyesOnly: 'PŘÍSNĚ TAJNÉ',
         secretRole: 'TAJNÁ ROLE',
-        partyLine: isLib => 'STRANICKÁ PŘÍSLUŠNOST: ' + (isLib ? 'LIBERÁLNÍ' : 'FAŠISTICKÁ'),
+        partyLine: isLiberal => 'STRANICKÁ PŘÍSLUŠNOST: ' + (isLiberal ? 'LIBERÁLNÍ' : 'FAŠISTICKÁ'),
         conspirators: 'TVOJI SPOLUSPIKLENCI', conspirator: 'TVŮJ SPOLUSPIKLENEC', standAlone: 'JSI V TOM SÁM',
-        fasLine: ns => (ns.length > 1 ? 'Fašisté: ' : 'Fašista: ') + ns.join(', '),
-        hitlerIs: n => 'Hitler: ' + n,
-        yourFascist: ns => 'Tvůj fašista je ' + ns,
+        fasLine: names => (names.length > 1 ? 'Fašisté: ' : 'Fašista: ') + names.join(', '),
+        hitlerIs: name => 'Hitler: ' + name,
+        yourFascist: name => 'Tvůj fašista je ' + name,
         hitlerAlone: 'Své fašisty neznáš — oni tebe ano.',
         memoFas: 'ZAPAMATUJ SI TO. NEVĚŘ NIKOMU.', memoLib: 'NAJDI HITLERA. ZACHRAŇ REPUBLIKU.',
         hidePass: 'SKRÝT A PODAT TELEFON',
@@ -834,7 +849,7 @@ class Component extends DCLogic {
           'Fašisté zavřou oči, Hitler skloní palec. Pak všichni — otevřete oči.'
         ],
         toFirstElection: 'K PRVNÍ VOLBĚ',
-        roundTitle: n => 'Kolo ' + n,
+        roundTitle: number => 'Kolo ' + number,
         election: 'VOLBY',
         president: 'PREZIDENT',
         notEligible: 'NEMŮŽE BÝT KANCLÉŘEM',
@@ -843,52 +858,52 @@ class Component extends DCLogic {
         electionTracker: 'POČÍTADLO VOLEB',
         trackerNote3: '3 NEÚSPĚCHY = CHAOS', trackerNote1: 'JEŠTĚ JEDEN = CHAOS',
         deckWord: 'BALÍČEK',
-        deckLine1: d => d + ' V BALÍČKU',
-        deckLine2: x => x + ' ODLOŽENO',
+        deckLine1: drawCount => drawCount + ' V BALÍČKU',
+        deckLine2: discardCount => discardCount + ' ODLOŽENO',
         theTable: 'U STOLU',
-        dashInstr: n => n.toUpperCase() + ' NAVRHNE KANCLÉŘE. HLASUJTE NAHLAS A ZAZNAMENEJTE:',
+        dashInstr: presidentName => presidentName.toUpperCase() + ' NAVRHNE KANCLÉŘE. HLASUJTE NAHLAS A ZAZNAMENEJTE:',
         votePassed: 'ZVOLENO', voteFailed: 'ZAMÍTNUTO',
         govElected: 'VLÁDA ZVOLENA',
         chanPickA: 'Kdo je', chanPickB: 'kancléřem?',
-        chanPickSub: p => 'Klepni na hráče, kterého stůl právě zvolil po boku prezidenta ' + p + '.',
+        chanPickSub: presidentName => 'Klepni na hráče, kterého stůl právě zvolil po boku prezidenta ' + presidentName + '.',
         termLimitedNote: 'Kvůli limitu úřadů chybí:',
         confidential: 'DŮVĚRNÉ',
         gateSubs: {
           gpPres: () => 'Jen pro oči prezidenta — čekají tři vrchní zákony balíčku.',
           gpChan: () => 'Jen pro oči kancléře — vyber, který ze dvou zákonů vstoupí v platnost.',
           gpPeek: () => 'Jen pro oči prezidenta — pohled na další tři zákony.',
-          gpInv: n => 'Jen pro oči prezidenta — stranická příslušnost hráče ' + n + '.'
+          gpInv: name => 'Jen pro oči prezidenta — stranická příslušnost hráče ' + name + '.'
         },
         gateBtns: { gbReveal: 'ODHALIT ZÁKONY', gbPeek: 'UKÁZAT TŘI VRCHNÍ', gbDossier: 'OTEVŘÍT SLOŽKU' },
-        presKicker: n => 'PREZIDENT ' + n.toUpperCase() + ' — PŘÍSNĚ TAJNÉ',
-        chanKicker: n => 'KANCLÉŘ ' + n.toUpperCase() + ' — PŘÍSNĚ TAJNÉ',
+        presKicker: name => 'PREZIDENT ' + name.toUpperCase() + ' — PŘÍSNĚ TAJNÉ',
+        chanKicker: name => 'KANCLÉŘ ' + name.toUpperCase() + ' — PŘÍSNĚ TAJNÉ',
         presDrawA: 'Tři zákony.', presDrawB: 'Jeden zahoď.',
         reshuffleNote: 'ODLOŽENÉ ZÁKONY BYLY ZAMÍCHÁNY ZPĚT DO BALÍČKU',
         discardSelected: 'ZAHODIT VYBRANÝ ZÁKON',
         tapToDiscard: 'KLEPNI NA ZÁKON, KTERÝ ZAHODÍŠ',
         enactTitleA: 'Dva zákony.', enactTitleB: 'Jeden schval.',
         enactSub: 'Druhý se zahodí lícem dolů. Mlč.',
-        enactBtn: w => 'SCHVÁLIT ' + w + ' ZÁKON',
+        enactBtn: partyWord => 'SCHVÁLIT ' + partyWord + ' ZÁKON',
         tapToEnact: 'KLEPNI NA ZÁKON, KTERÝ SCHVÁLÍŠ',
         proposeVeto: 'NAVRHNOUT VETO',
         vetoRefusedNote: 'VETO ODMÍTNUTO — MUSÍŠ SCHVÁLIT ZÁKON',
         publicVeto: 'VEŘEJNÉ — PRÁVO VETA',
         vetoTitleA: 'Veto je', vetoTitleB: 'navrženo.',
-        vetoBody: (c, p) => 'Kancléř ' + c + ' chce zahodit oba zákony. Prezidente ' + p + ', souhlasíš? Pokud ano, počítadlo voleb se posune o jedna.',
+        vetoBody: (chancellorName, presidentName) => 'Kancléř ' + chancellorName + ' chce zahodit oba zákony. Prezidente ' + presidentName + ', souhlasíš? Pokud ano, počítadlo voleb se posune o jedna.',
         vetoAgreeBtn: 'SOUHLASÍM — ZAHODIT OBA',
         vetoRefuseBtn: 'ODMÍTÁM — KANCLÉŘ MUSÍ SCHVÁLIT',
         publicAnnouncement: 'VEŘEJNÉ OZNÁMENÍ',
-        resultTitle: F => F ? 'Fašistický zákon byl schválen.' : 'Liberální zákon byl schválen.',
-        resultCounts: (F, fas, lib) => F ? 'FAŠISTICKÉ ZÁKONY: ' + fas + ' Z 6' : 'LIBERÁLNÍ ZÁKONY: ' + lib + ' Z 5',
+        resultTitle: isFascist => isFascist ? 'Fašistický zákon byl schválen.' : 'Liberální zákon byl schválen.',
+        resultCounts: (isFascist, fascistCount, liberalCount) => isFascist ? 'FAŠISTICKÉ ZÁKONY: ' + fascistCount + ' Z 6' : 'LIBERÁLNÍ ZÁKONY: ' + liberalCount + ' Z 5',
         chaosBox: 'Tři neúspěšné volby — rozhněvaný lid sám schválil vrchní zákon balíčku. Žádná pravomoc se neuděluje. Limity úřadů jsou zapomenuty.',
         powerUnlocked: 'ODEMČENA PRAVOMOC',
         unlockPower: 'POUŽÍT PRAVOMOC', nextRoundBtn: 'DO DALŠÍHO KOLA',
         presPowerPublic: 'PREZIDENTSKÁ PRAVOMOC — VEŘEJNÁ VOLBA',
         powerNames: { peek: 'Nahlédnutí na zákony', investigate: 'Lustrace', special: 'Mimořádná volba', execute: 'Poprava' },
         powerDescs: {
-          investigate: n => 'Prezidente ' + n + ' — vyber hráče k lustraci. Jeho stranickou příslušnost uvidíš jen ty. Každého hráče lze lustrovat jen jednou za hru.',
-          special: n => 'Prezidente ' + n + ' — vyber libovolného hráče jako příštího kandidáta na prezidenta. Poté rotace pokračuje tam, kde skončila.',
-          execute: n => 'Prezidente ' + n + ' — vyber hráče k popravě. Je-li to Hitler, liberálové na místě vítězí. Vybírej moudře.'
+          investigate: name => 'Prezidente ' + name + ' — vyber hráče k lustraci. Jeho stranickou příslušnost uvidíš jen ty. Každého hráče lze lustrovat jen jednou za hru.',
+          special: name => 'Prezidente ' + name + ' — vyber libovolného hráče jako příštího kandidáta na prezidenta. Poté rotace pokračuje tam, kde skončila.',
+          execute: name => 'Prezidente ' + name + ' — vyber hráče k popravě. Je-li to Hitler, liberálové na místě vítězí. Vybírej moudře.'
         },
         slotLabels: { investigate: 'LUSTRACE', peek: 'NAHLÉDNUTÍ NA ZÁKONY', special: 'MIMOŘÁDNÁ VOLBA', execute: 'POPRAVA' },
         winSlot: 'VÝHRA',
@@ -907,8 +922,8 @@ class Component extends DCLogic {
         winReasons: {
           libPolicies: () => 'Pět liberálních zákonů bylo schváleno. Republika stojí.',
           fasPolicies: () => 'Šest fašistických zákonů bylo schváleno. Republika padá.',
-          hitlerChan: n => n + ' je Hitler — a stůl ho zvolil kancléřem se třemi fašistickými zákony na desce.',
-          hitlerShot: n => n + ' byl Hitler. Kulka našla svůj cíl.'
+          hitlerChan: name => name + ' je Hitler — a stůl ho zvolil kancléřem se třemi fašistickými zákony na desce.',
+          hitlerShot: name => name + ' byl Hitler. Kulka našla svůj cíl.'
         },
         rolesRevealed: 'ODHALENÍ ROLÍ',
         executedTag: 'POPRAVEN',
@@ -918,14 +933,14 @@ class Component extends DCLogic {
         backToSetup: 'ZPĚT NA NASTAVENÍ',
         rulesTitle: 'Pravidla',
         rulesThisTable: 'TENTO STŮL',
-        rulesRoleLine: (rc, rl, rf) => rc + ' hráčů: ' + rl + (rl <= 4 ? ' liberálové' : ' liberálů') + ', ' + rf + (rf === 1 ? ' fašista' : ' fašisté') + ' a Hitler. ' + (rc <= 6 ? 'Hitler svého fašistu zná.' : 'Hitler své fašisty nezná — oni jeho ano.'),
+        rulesRoleLine: (playerCount, liberalCount, fascistCount) => playerCount + ' hráčů: ' + liberalCount + (liberalCount <= 4 ? ' liberálové' : ' liberálů') + ', ' + fascistCount + (fascistCount === 1 ? ' fašista' : ' fašisté') + ' a Hitler. ' + (playerCount <= 6 ? 'Hitler svého fašistu zná.' : 'Hitler své fašisty nezná — oni jeho ano.'),
         rulesEachRound: 'KAŽDÉ KOLO',
         rulesRound1: '1 — Prezident nahlas navrhne kancléře. Všichni nahlas hlasují pro, nebo proti.',
         rulesRound2: '2 — Při zvolení si prezident lízne tři zákony, jeden zahodí a kancléř jeden ze zbylých dvou schválí.',
         rulesRound3: '3 — Při neúspěchu se posune počítadlo voleb. Na třetím poli rozhněvaný lid schválí vrchní zákon balíčku.',
         rulesTermH: 'LIMITY ÚŘADŮ',
         rulesTerm: 'Naposledy zvolený prezident a kancléř nesmí být navrženi na kancléře. Při pěti a méně živých hráčích platí limit jen pro posledního kancléře.',
-        rulesPowersH: n => 'PRAVOMOCI FAŠISTICKÉ ŘADY (' + n + ' HRÁČŮ)',
+        rulesPowersH: playerCount => 'PRAVOMOCI FAŠISTICKÉ ŘADY (' + playerCount + ' HRÁČŮ)',
         policyWord: 'Zákon',
         rulesVetoH: 'VETO',
         rulesVeto: 'Po pátém fašistickém zákonu může kancléř navrhnout zahození obou zákonů. Pokud prezident souhlasí, nic se neschválí a počítadlo voleb se posune.',
@@ -941,66 +956,66 @@ class Component extends DCLogic {
     return this._STR;
   }
 
-  S() { return this.strings()[this.state.lang] || this.strings().en; }
+  activeStrings() { return this.strings()[this.state.lang] || this.strings().en; }
 
   componentDidMount() {
     try {
-      const raw = localStorage.getItem('secret-hitler-game-v1');
-      if (raw) {
-        const s = JSON.parse(raw);
-        if (s && s.screen) this.setState(s);
+      const savedJson = localStorage.getItem('secret-hitler-game-v1');
+      if (savedJson) {
+        const savedState = JSON.parse(savedJson);
+        if (savedState && savedState.screen) this.setState(savedState);
       }
-    } catch (e) {}
+    } catch (error) {}
   }
 
   componentDidUpdate() {
-    try { localStorage.setItem('secret-hitler-game-v1', JSON.stringify(this.state)); } catch (e) {}
+    try { localStorage.setItem('secret-hitler-game-v1', JSON.stringify(this.state)); } catch (error) {}
   }
 
-  shuffle(a) {
-    const r = [...a];
-    for (let i = r.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [r[i], r[j]] = [r[j], r[i]];
+  shuffle(array) {
+    const shuffled = [...array];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
     }
-    return r;
+    return shuffled;
   }
 
-  name(i) { const p = this.state.players[i]; return p ? p.name : ''; }
-  aliveCount() { return this.state.players.filter(p => p.alive).length; }
+  name(playerIndex) { const player = this.state.players[playerIndex]; return player ? player.name : ''; }
+  aliveCount() { return this.state.players.filter(player => player.alive).length; }
 
-  nextAlive(i) {
-    const n = this.state.players.length;
-    let j = i;
-    for (let k = 0; k < n; k++) {
-      j = (j + 1) % n;
-      if (this.state.players[j].alive) return j;
+  nextAlive(fromIndex) {
+    const playerCount = this.state.players.length;
+    let index = fromIndex;
+    for (let step = 0; step < playerCount; step++) {
+      index = (index + 1) % playerCount;
+      if (this.state.players[index].alive) return index;
     }
-    return i;
+    return fromIndex;
   }
 
-  libCountFor(c) { return ({ 5: 3, 6: 4, 7: 4, 8: 5, 9: 5, 10: 6 })[c]; }
+  libCountFor(playerCount) { return ({ 5: 3, 6: 4, 7: 4, 8: 5, 9: 5, 10: 6 })[playerCount]; }
 
   powersChart() {
-    const c = this.state.players.length || this.state.count;
-    if (c <= 6) return { 3: 'peek', 4: 'execute', 5: 'execute' };
-    if (c <= 8) return { 2: 'investigate', 3: 'special', 4: 'execute', 5: 'execute' };
+    const playerCount = this.state.players.length || this.state.count;
+    if (playerCount <= 6) return { 3: 'peek', 4: 'execute', 5: 'execute' };
+    if (playerCount <= 8) return { 2: 'investigate', 3: 'special', 4: 'execute', 5: 'execute' };
     return { 1: 'investigate', 2: 'investigate', 3: 'special', 4: 'execute', 5: 'execute' };
   }
 
   startGame() {
     const { count, useNames, drafts, lang } = this.state;
-    const L = this.S();
-    const libN = this.libCountFor(count);
-    const fasN = count - libN - 1;
+    const strings = this.activeStrings();
+    const liberalCount = this.libCountFor(count);
+    const fascistCount = count - liberalCount - 1;
     let roles = ['hitler'];
-    for (let i = 0; i < fasN; i++) roles.push('fascist');
+    for (let index = 0; index < fascistCount; index++) roles.push('fascist');
     while (roles.length < count) roles.push('liberal');
     roles = this.shuffle(roles);
     const players = [];
-    for (let i = 0; i < count; i++) {
-      const nm = useNames && drafts[i] && drafts[i].trim() ? drafts[i].trim() : L.playerName(i + 1);
-      players.push({ name: nm, role: roles[i], alive: true, investigated: false });
+    for (let index = 0; index < count; index++) {
+      const displayName = useNames && drafts[index] && drafts[index].trim() ? drafts[index].trim() : strings.playerName(index + 1);
+      players.push({ name: displayName, role: roles[index], alive: true, investigated: false });
     }
     const deck = this.shuffle([].concat(Array(11).fill('F'), Array(6).fill('L')));
     this.setState({
@@ -1013,98 +1028,98 @@ class Component extends DCLogic {
   }
 
   advanceRoundPatch() {
-    const s = this.state;
-    let presidentIdx, specialReturnFrom = s.specialReturnFrom;
+    const state = this.state;
+    let presidentIdx, specialReturnFrom = state.specialReturnFrom;
     if (specialReturnFrom != null) {
       presidentIdx = this.nextAlive(specialReturnFrom);
       specialReturnFrom = null;
     } else {
-      presidentIdx = this.nextAlive(s.presidentIdx);
+      presidentIdx = this.nextAlive(state.presidentIdx);
     }
     return {
-      presidentIdx, specialReturnFrom, round: s.round + 1,
+      presidentIdx, specialReturnFrom, round: state.round + 1,
       chancellorIdx: null, pendingPower: null, vetoRefused: false,
       chaos: false, sel: null, drawn: [], reshuffled: false, screen: 'dashboard'
     };
   }
 
-  applyEnact(card, opts) {
-    const s = this.state;
-    const lib = s.lib + (card === 'L' ? 1 : 0);
-    const fas = s.fas + (card === 'F' ? 1 : 0);
+  applyEnact(card, options) {
+    const state = this.state;
+    const liberalCount = state.lib + (card === 'L' ? 1 : 0);
+    const fascistCount = state.fas + (card === 'F' ? 1 : 0);
     let winner = null, winKey = '';
-    if (lib >= 5) { winner = 'liberal'; winKey = 'libPolicies'; }
-    if (fas >= 6) { winner = 'fascist'; winKey = 'fasPolicies'; }
-    const pendingPower = (!opts.chaos && card === 'F' && !winner) ? (this.powersChart()[fas] || null) : null;
+    if (liberalCount >= 5) { winner = 'liberal'; winKey = 'libPolicies'; }
+    if (fascistCount >= 6) { winner = 'fascist'; winKey = 'fasPolicies'; }
+    const pendingPower = (!options.chaos && card === 'F' && !winner) ? (this.powersChart()[fascistCount] || null) : null;
     this.setState({
-      lib, fas, lastEnacted: card, chaos: !!opts.chaos, pendingPower,
-      deck: opts.deck != null ? opts.deck : s.deck,
-      discard: opts.discard != null ? opts.discard : s.discard,
+      lib: liberalCount, fas: fascistCount, lastEnacted: card, chaos: !!options.chaos, pendingPower,
+      deck: options.deck != null ? options.deck : state.deck,
+      discard: options.discard != null ? options.discard : state.discard,
       drawn: [], sel: null, winner, winKey, winName: '',
       screen: winner ? 'over' : 'policy-result',
-      ...(opts.extra || {})
+      ...(options.extra || {})
     });
   }
 
   doChaos() {
-    const s = this.state;
-    let deck = [...s.deck], discard = [...s.discard];
+    const state = this.state;
+    let deck = [...state.deck], discard = [...state.discard];
     if (deck.length < 1) { deck = this.shuffle([].concat(deck, discard)); discard = []; }
-    const card = deck.shift();
-    this.applyEnact(card, {
+    const topCard = deck.shift();
+    this.applyEnact(topCard, {
       deck, discard, chaos: true,
       extra: { tracker: 0, lastPresIdx: null, lastChanIdx: null }
     });
   }
 
-  chanPick(i) {
-    const s = this.state;
-    const p = s.players[i];
-    if (s.fas >= 3 && p.role === 'hitler') {
-      this.setState({ chancellorIdx: i, winner: 'fascist', winKey: 'hitlerChan', winName: p.name, screen: 'over' });
+  chanPick(chancellorIndex) {
+    const state = this.state;
+    const chancellor = state.players[chancellorIndex];
+    if (state.fas >= 3 && chancellor.role === 'hitler') {
+      this.setState({ chancellorIdx: chancellorIndex, winner: 'fascist', winKey: 'hitlerChan', winName: chancellor.name, screen: 'over' });
       return;
     }
-    let deck = [...s.deck], discard = [...s.discard], reshuffled = false;
+    let deck = [...state.deck], discard = [...state.discard], reshuffled = false;
     if (deck.length < 3) { deck = this.shuffle([].concat(deck, discard)); discard = []; reshuffled = true; }
     const drawn = deck.splice(0, 3);
     this.setState({
-      chancellorIdx: i, lastPresIdx: s.presidentIdx, lastChanIdx: i, tracker: 0,
+      chancellorIdx: chancellorIndex, lastPresIdx: state.presidentIdx, lastChanIdx: chancellorIndex, tracker: 0,
       deck, discard, drawn, sel: null, reshuffled,
-      gate: { name: this.name(s.presidentIdx), subKey: 'gpPres', btnKey: 'gbReveal', next: 'pres-draw' },
+      gate: { name: this.name(state.presidentIdx), subKey: 'gpPres', btnKey: 'gbReveal', next: 'pres-draw' },
       screen: 'gate'
     });
   }
 
   confirmDiscard() {
-    const s = this.state;
-    if (s.sel == null) return;
-    const d = [...s.drawn];
-    const out = d.splice(s.sel, 1)[0];
+    const state = this.state;
+    if (state.sel == null) return;
+    const hand = [...state.drawn];
+    const discarded = hand.splice(state.sel, 1)[0];
     this.setState({
-      drawn: d, discard: [...s.discard, out], sel: null, reshuffled: false,
-      gate: { name: this.name(s.chancellorIdx), subKey: 'gpChan', btnKey: 'gbReveal', next: 'chan-enact' },
+      drawn: hand, discard: [...state.discard, discarded], sel: null, reshuffled: false,
+      gate: { name: this.name(state.chancellorIdx), subKey: 'gpChan', btnKey: 'gbReveal', next: 'chan-enact' },
       screen: 'gate'
     });
   }
 
   confirmEnact() {
-    const s = this.state;
-    if (s.sel == null) return;
-    const d = [...s.drawn];
-    const card = d.splice(s.sel, 1)[0];
-    this.applyEnact(card, { discard: [...s.discard, d[0]] });
+    const state = this.state;
+    if (state.sel == null) return;
+    const hand = [...state.drawn];
+    const enactedCard = hand.splice(state.sel, 1)[0];
+    this.applyEnact(enactedCard, { discard: [...state.discard, hand[0]] });
   }
 
   continueFromResult() {
-    const s = this.state;
-    const pk = s.pendingPower;
-    if (!pk) { this.setState(this.advanceRoundPatch()); return; }
-    if (pk === 'peek') {
-      let deck = [...s.deck], discard = [...s.discard];
+    const state = this.state;
+    const power = state.pendingPower;
+    if (!power) { this.setState(this.advanceRoundPatch()); return; }
+    if (power === 'peek') {
+      let deck = [...state.deck], discard = [...state.discard];
       if (deck.length < 3) { deck = this.shuffle([].concat(deck, discard)); discard = []; }
       this.setState({
         deck, discard,
-        gate: { name: this.name(s.presidentIdx), subKey: 'gpPeek', btnKey: 'gbPeek', next: 'peek' },
+        gate: { name: this.name(state.presidentIdx), subKey: 'gpPeek', btnKey: 'gbPeek', next: 'peek' },
         screen: 'gate'
       });
       return;
@@ -1112,338 +1127,339 @@ class Component extends DCLogic {
     this.setState({ screen: 'power-pick' });
   }
 
-  pickPowerTarget(i) {
-    const s = this.state;
-    const pk = s.pendingPower;
-    if (pk === 'investigate') {
-      const players = s.players.map((p, j) => j === i ? { ...p, investigated: true } : p);
+  pickPowerTarget(targetIndex) {
+    const state = this.state;
+    const power = state.pendingPower;
+    if (power === 'investigate') {
+      const players = state.players.map((player, index) => index === targetIndex ? { ...player, investigated: true } : player);
       this.setState({
-        players, invTarget: i,
-        gate: { name: this.name(s.presidentIdx), subKey: 'gpInv', subName: this.name(i), btnKey: 'gbDossier', next: 'inv-result' },
+        players, invTarget: targetIndex,
+        gate: { name: this.name(state.presidentIdx), subKey: 'gpInv', subName: this.name(targetIndex), btnKey: 'gbDossier', next: 'inv-result' },
         screen: 'gate'
       });
-    } else if (pk === 'execute') {
-      const p = s.players[i];
-      const players = s.players.map((q, j) => j === i ? { ...q, alive: false } : q);
-      if (p.role === 'hitler') {
-        this.setState({ players, winner: 'liberal', winKey: 'hitlerShot', winName: p.name, screen: 'over' });
+    } else if (power === 'execute') {
+      const target = state.players[targetIndex];
+      const players = state.players.map((player, index) => index === targetIndex ? { ...player, alive: false } : player);
+      if (target.role === 'hitler') {
+        this.setState({ players, winner: 'liberal', winKey: 'hitlerShot', winName: target.name, screen: 'over' });
       } else {
-        this.setState({ players, execName: p.name, screen: 'exec-result' });
+        this.setState({ players, execName: target.name, screen: 'exec-result' });
       }
-    } else if (pk === 'special') {
+    } else if (power === 'special') {
       this.setState({
-        specialReturnFrom: s.presidentIdx, presidentIdx: i,
-        round: s.round + 1, chancellorIdx: null, pendingPower: null,
+        specialReturnFrom: state.presidentIdx, presidentIdx: targetIndex,
+        round: state.round + 1, chancellorIdx: null, pendingPower: null,
         vetoRefused: false, chaos: false, sel: null, drawn: [], screen: 'dashboard'
       });
     }
   }
 
   renderVals() {
-    const s = this.state;
-    const sc = s.screen;
-    const L = this.S();
+    const state = this.state;
+    const screen = state.screen;
+    const strings = this.activeStrings();
     const roleColors = { liberal: '#46688B', fascist: '#DD5126', hitler: '#26201A' };
 
-    const cardFace = (k, i, selectable, row) => {
-      const F = k === 'F';
+    const cardFace = (policyKind, index, selectable, isRow) => {
+      const isFascist = policyKind === 'F';
+      const isSelected = selectable && state.sel === index;
       return {
-        kindWord: F ? L.fascistCard : L.liberalCard,
-        bg: F ? '#DD5126' : '#46688B',
-        fg: F ? '#26201A' : '#F2E6CE',
-        symBg: F ? '#26201A' : '#F2E6CE',
-        symBR: F ? '0' : '50%',
-        symTr: F ? 'rotate(45deg)' : 'none',
-        bd: selectable && s.sel === i ? '4px solid #E8A03C' : '4px solid #F2E6CE',
-        lift: selectable && s.sel === i ? (row ? 'translateX(12px)' : 'translateY(-14px)') : 'none',
-        filt: selectable && row && s.sel === i ? 'grayscale(0.9)' : 'none',
-        op: selectable && row && s.sel === i ? '0.55' : '1',
-        tap: selectable ? () => this.setState({ sel: i }) : null,
-        n: i + 1
+        kindWord: isFascist ? strings.fascistCard : strings.liberalCard,
+        bg: isFascist ? '#DD5126' : '#46688B',
+        fg: isFascist ? '#26201A' : '#F2E6CE',
+        symBg: isFascist ? '#26201A' : '#F2E6CE',
+        symBR: isFascist ? '0' : '50%',
+        symTr: isFascist ? 'rotate(45deg)' : 'none',
+        bd: isSelected ? '4px solid #E8A03C' : '4px solid #F2E6CE',
+        lift: isSelected ? (isRow ? 'translateX(12px)' : 'translateY(-14px)') : 'none',
+        filt: isSelected && isRow ? 'grayscale(0.9)' : 'none',
+        op: isSelected && isRow ? '0.55' : '1',
+        tap: selectable ? () => this.setState({ sel: index }) : null,
+        n: index + 1
       };
     };
 
     const termLimited = [];
-    if (s.lastChanIdx != null && s.players[s.lastChanIdx] && s.players[s.lastChanIdx].alive && s.lastChanIdx !== s.presidentIdx) termLimited.push(s.lastChanIdx);
-    if (s.lastPresIdx != null && s.players[s.lastPresIdx] && s.players[s.lastPresIdx].alive && this.aliveCount() > 5 && s.lastPresIdx !== s.presidentIdx && s.lastPresIdx !== s.lastChanIdx) termLimited.push(s.lastPresIdx);
+    if (state.lastChanIdx != null && state.players[state.lastChanIdx] && state.players[state.lastChanIdx].alive && state.lastChanIdx !== state.presidentIdx) termLimited.push(state.lastChanIdx);
+    if (state.lastPresIdx != null && state.players[state.lastPresIdx] && state.players[state.lastPresIdx].alive && this.aliveCount() > 5 && state.lastPresIdx !== state.presidentIdx && state.lastPresIdx !== state.lastChanIdx) termLimited.push(state.lastPresIdx);
 
-    const libN = this.libCountFor(s.count);
-    const fasN = s.count - libN - 1;
-    const chart = this.powersChart();
+    const liberalCount = this.libCountFor(state.count);
+    const fascistCount = state.count - liberalCount - 1;
+    const powerChart = this.powersChart();
 
-    const vals = {
-      t: L,
-      isSetup: sc === 'setup',
-      isDealGate: sc === 'deal-gate',
-      isDealReveal: sc === 'deal-reveal',
-      isNight: sc === 'night',
-      isDash: sc === 'dashboard',
-      isChanPick: sc === 'chan-pick',
-      isGate: sc === 'gate',
-      isPresDraw: sc === 'pres-draw',
-      isChanEnact: sc === 'chan-enact',
-      isVeto: sc === 'veto',
-      isPolicyResult: sc === 'policy-result',
-      isPowerPick: sc === 'power-pick',
-      isInvResult: sc === 'inv-result',
-      isPeek: sc === 'peek',
-      isExecResult: sc === 'exec-result',
-      isOver: sc === 'over',
-      showRules: s.showRules,
+    const viewModel = {
+      t: strings,
+      isSetup: screen === 'setup',
+      isDealGate: screen === 'deal-gate',
+      isDealReveal: screen === 'deal-reveal',
+      isNight: screen === 'night',
+      isDash: screen === 'dashboard',
+      isChanPick: screen === 'chan-pick',
+      isGate: screen === 'gate',
+      isPresDraw: screen === 'pres-draw',
+      isChanEnact: screen === 'chan-enact',
+      isVeto: screen === 'veto',
+      isPolicyResult: screen === 'policy-result',
+      isPowerPick: screen === 'power-pick',
+      isInvResult: screen === 'inv-result',
+      isPeek: screen === 'peek',
+      isExecResult: screen === 'exec-result',
+      isOver: screen === 'over',
+      showRules: state.showRules,
       openRules: () => this.setState({ showRules: true }),
       closeRules: () => this.setState({ showRules: false }),
       abandon: () => {
-        if (window.confirm(L.confirmAbandon)) {
-          this.setState({ ...this.freshApp(), lang: s.lang, count: s.count, useNames: s.useNames, drafts: [...s.drafts] });
+        if (window.confirm(strings.confirmAbandon)) {
+          this.setState({ ...this.freshApp(), lang: state.lang, count: state.count, useNames: state.useNames, drafts: [...state.drafts] });
         }
       },
 
       // --- language switcher ---
       setEn: () => this.setState({ lang: 'en' }),
       setCs: () => this.setState({ lang: 'cs' }),
-      enBg: s.lang === 'en' ? '#26201A' : '#F2E6CE',
-      enFg: s.lang === 'en' ? '#F2E6CE' : '#26201A',
-      csBg: s.lang === 'cs' ? '#26201A' : '#F2E6CE',
-      csFg: s.lang === 'cs' ? '#F2E6CE' : '#26201A',
+      enBg: state.lang === 'en' ? '#26201A' : '#F2E6CE',
+      enFg: state.lang === 'en' ? '#F2E6CE' : '#26201A',
+      csBg: state.lang === 'cs' ? '#26201A' : '#F2E6CE',
+      csFg: state.lang === 'cs' ? '#F2E6CE' : '#26201A',
 
       // --- setup ---
-      count: s.count,
-      dec: () => this.setState({ count: Math.max(5, s.count - 1) }),
-      inc: () => this.setState({ count: Math.min(10, s.count + 1) }),
-      roleSummary: L.roleSummary(libN, fasN),
-      useNames: s.useNames,
+      count: state.count,
+      dec: () => this.setState({ count: Math.max(5, state.count - 1) }),
+      inc: () => this.setState({ count: Math.min(10, state.count + 1) }),
+      roleSummary: strings.roleSummary(liberalCount, fascistCount),
+      useNames: state.useNames,
       namesOn: () => this.setState({ useNames: true }),
       namesOff: () => this.setState({ useNames: false }),
-      noBg: s.useNames ? '#F2E6CE' : '#26201A',
-      noFg: s.useNames ? '#26201A' : '#F2E6CE',
-      yesBg: s.useNames ? '#26201A' : '#F2E6CE',
-      yesFg: s.useNames ? '#F2E6CE' : '#26201A',
-      nameInputs: Array.from({ length: s.count }, (_, i) => ({
-        label: L.playerName(i + 1),
-        value: s.drafts[i] || '',
-        onChange: (e) => {
-          const d = [...this.state.drafts];
-          d[i] = e.target.value;
-          this.setState({ drafts: d });
+      noBg: state.useNames ? '#F2E6CE' : '#26201A',
+      noFg: state.useNames ? '#26201A' : '#F2E6CE',
+      yesBg: state.useNames ? '#26201A' : '#F2E6CE',
+      yesFg: state.useNames ? '#F2E6CE' : '#26201A',
+      nameInputs: Array.from({ length: state.count }, (unused, index) => ({
+        label: strings.playerName(index + 1),
+        value: state.drafts[index] || '',
+        onChange: (event) => {
+          const drafts = [...this.state.drafts];
+          drafts[index] = event.target.value;
+          this.setState({ drafts });
         }
       })),
       startGame: () => this.startGame(),
 
       // --- shared names ---
-      presName: this.name(s.presidentIdx),
-      presNameUp: this.name(s.presidentIdx).toUpperCase(),
-      chanName: s.chancellorIdx != null ? this.name(s.chancellorIdx) : '',
-      presKicker: L.presKicker(this.name(s.presidentIdx)),
-      chanKicker: s.chancellorIdx != null ? L.chanKicker(this.name(s.chancellorIdx)) : ''
+      presName: this.name(state.presidentIdx),
+      presNameUp: this.name(state.presidentIdx).toUpperCase(),
+      chanName: state.chancellorIdx != null ? this.name(state.chancellorIdx) : '',
+      presKicker: strings.presKicker(this.name(state.presidentIdx)),
+      chanKicker: state.chancellorIdx != null ? strings.chanKicker(this.name(state.chancellorIdx)) : ''
     };
 
     // --- deal ---
-    const dp = s.players[s.dealIndex];
-    if (dp) {
-      vals.dealName = dp.name;
-      vals.dealNameUp = dp.name.toUpperCase();
-      vals.dealProgress = L.dealProgress(s.dealIndex + 1, s.players.length);
-      vals.dealBtnLabel = L.dealBtn(dp.name);
-      vals.showRole = () => this.setState({ screen: 'deal-reveal' });
-      vals.roleWord = L.roleNames[dp.role];
-      vals.roleColor = roleColors[dp.role];
-      vals.roleShadow = dp.role === 'hitler' ? '#DD5126' : '#26201A';
-      vals.roleBandBg = dp.role === 'liberal' ? '#46688B' : '#DD5126';
-      vals.partyLine = L.partyLine(dp.role === 'liberal');
-      const fasNames = s.players.filter((p, j) => p.role === 'fascist' && j !== s.dealIndex).map(p => p.name);
-      const hitlerName = (s.players.find(p => p.role === 'hitler') || {}).name;
-      if (dp.role === 'fascist') {
-        vals.hasIntel = true;
-        vals.intelTitle = L.conspirators;
-        const lines = [];
-        if (fasNames.length) lines.push({ text: L.fasLine(fasNames) });
-        lines.push({ text: L.hitlerIs(hitlerName) });
-        vals.intelLines = lines;
-        vals.memoLine = L.memoFas;
-      } else if (dp.role === 'hitler') {
-        vals.hasIntel = true;
-        if (s.players.length <= 6) {
-          vals.intelTitle = L.conspirator;
-          vals.intelLines = [{ text: L.yourFascist(fasNames.join(' & ')) }];
+    const dealingPlayer = state.players[state.dealIndex];
+    if (dealingPlayer) {
+      viewModel.dealName = dealingPlayer.name;
+      viewModel.dealNameUp = dealingPlayer.name.toUpperCase();
+      viewModel.dealProgress = strings.dealProgress(state.dealIndex + 1, state.players.length);
+      viewModel.dealBtnLabel = strings.dealBtn(dealingPlayer.name);
+      viewModel.showRole = () => this.setState({ screen: 'deal-reveal' });
+      viewModel.roleWord = strings.roleNames[dealingPlayer.role];
+      viewModel.roleColor = roleColors[dealingPlayer.role];
+      viewModel.roleShadow = dealingPlayer.role === 'hitler' ? '#DD5126' : '#26201A';
+      viewModel.roleBandBg = dealingPlayer.role === 'liberal' ? '#46688B' : '#DD5126';
+      viewModel.partyLine = strings.partyLine(dealingPlayer.role === 'liberal');
+      const fellowFascistNames = state.players.filter((player, index) => player.role === 'fascist' && index !== state.dealIndex).map(player => player.name);
+      const hitlerName = (state.players.find(player => player.role === 'hitler') || {}).name;
+      if (dealingPlayer.role === 'fascist') {
+        viewModel.hasIntel = true;
+        viewModel.intelTitle = strings.conspirators;
+        const intelLines = [];
+        if (fellowFascistNames.length) intelLines.push({ text: strings.fasLine(fellowFascistNames) });
+        intelLines.push({ text: strings.hitlerIs(hitlerName) });
+        viewModel.intelLines = intelLines;
+        viewModel.memoLine = strings.memoFas;
+      } else if (dealingPlayer.role === 'hitler') {
+        viewModel.hasIntel = true;
+        if (state.players.length <= 6) {
+          viewModel.intelTitle = strings.conspirator;
+          viewModel.intelLines = [{ text: strings.yourFascist(fellowFascistNames.join(' & ')) }];
         } else {
-          vals.intelTitle = L.standAlone;
-          vals.intelLines = [{ text: L.hitlerAlone }];
+          viewModel.intelTitle = strings.standAlone;
+          viewModel.intelLines = [{ text: strings.hitlerAlone }];
         }
-        vals.memoLine = L.memoFas;
+        viewModel.memoLine = strings.memoFas;
       } else {
-        vals.hasIntel = false;
-        vals.intelTitle = '';
-        vals.intelLines = [];
-        vals.memoLine = L.memoLib;
+        viewModel.hasIntel = false;
+        viewModel.intelTitle = '';
+        viewModel.intelLines = [];
+        viewModel.memoLine = strings.memoLib;
       }
-      vals.hideAndPass = () => {
-        const n = this.state.dealIndex + 1;
-        if (n >= this.state.players.length) this.setState({ screen: 'night' });
-        else this.setState({ screen: 'deal-gate', dealIndex: n });
+      viewModel.hideAndPass = () => {
+        const nextIndex = this.state.dealIndex + 1;
+        if (nextIndex >= this.state.players.length) this.setState({ screen: 'night' });
+        else this.setState({ screen: 'deal-gate', dealIndex: nextIndex });
       };
     }
 
     // --- night ---
-    const steps = (s.players.length || s.count) <= 6 ? L.nightSmall : L.nightBig;
-    vals.nightSteps = steps.map((text, i) => ({ n: i + 1, text }));
-    vals.beginGame = () => this.setState({ screen: 'dashboard' });
+    const nightScript = (state.players.length || state.count) <= 6 ? strings.nightSmall : strings.nightBig;
+    viewModel.nightSteps = nightScript.map((text, index) => ({ n: index + 1, text }));
+    viewModel.beginGame = () => this.setState({ screen: 'dashboard' });
 
     // --- dashboard ---
-    vals.roundTitle = L.roundTitle(s.round);
-    vals.ineligibleText = termLimited.length ? termLimited.map(i => this.name(i)).join(', ') : L.everyoneEligible;
-    vals.fas = s.fas;
-    vals.lib = s.lib;
-    const symEmpty = { symShow: 'none', symBg: 'transparent', symBR: '0', symTr: 'none', symSize: '0' };
-    const fasSym = { symShow: 'block', symBg: '#26201A', symBR: '0', symTr: 'rotate(45deg)', symSize: '20px' };
-    const libSym = { symShow: 'block', symBg: '#F2E6CE', symBR: '50%', symTr: 'none', symSize: '22px' };
-    vals.fSlots = [1, 2, 3, 4, 5, 6].map(i => {
-      if (i <= s.fas) return { bg: '#DD5126', bd: '3px solid #26201A', label: '', lc: '#26201A', ...fasSym };
-      if (i === 6) return { bg: '#EFE0C2', bd: '3px solid #26201A', label: L.winSlot, lc: '#26201A', ...symEmpty };
-      const pk = chart[i];
-      if (pk) return { bg: '#EFE0C2', bd: '3px dashed #B4543B', label: L.slotLabels[pk], lc: '#B4543B', ...symEmpty };
-      return { bg: '#EFE0C2', bd: '3px solid #26201A', label: '', lc: '#26201A', ...symEmpty };
+    viewModel.roundTitle = strings.roundTitle(state.round);
+    viewModel.ineligibleText = termLimited.length ? termLimited.map(index => this.name(index)).join(', ') : strings.everyoneEligible;
+    viewModel.fas = state.fas;
+    viewModel.lib = state.lib;
+    const emptySymbol = { symShow: 'none', symBg: 'transparent', symBR: '0', symTr: 'none', symSize: '0' };
+    const fascistSymbol = { symShow: 'block', symBg: '#26201A', symBR: '0', symTr: 'rotate(45deg)', symSize: '20px' };
+    const liberalSymbol = { symShow: 'block', symBg: '#F2E6CE', symBR: '50%', symTr: 'none', symSize: '22px' };
+    viewModel.fSlots = [1, 2, 3, 4, 5, 6].map(slotNumber => {
+      if (slotNumber <= state.fas) return { bg: '#DD5126', bd: '3px solid #26201A', label: '', lc: '#26201A', ...fascistSymbol };
+      if (slotNumber === 6) return { bg: '#EFE0C2', bd: '3px solid #26201A', label: strings.winSlot, lc: '#26201A', ...emptySymbol };
+      const power = powerChart[slotNumber];
+      if (power) return { bg: '#EFE0C2', bd: '3px dashed #B4543B', label: strings.slotLabels[power], lc: '#B4543B', ...emptySymbol };
+      return { bg: '#EFE0C2', bd: '3px solid #26201A', label: '', lc: '#26201A', ...emptySymbol };
     });
-    vals.lSlots = [1, 2, 3, 4, 5].map(i => {
-      if (i <= s.lib) return { bg: '#46688B', bd: '3px solid #26201A', label: '', lc: '#F2E6CE', ...libSym };
-      if (i === 5) return { bg: '#EFE0C2', bd: '3px solid #26201A', label: L.winSlot, lc: '#26201A', ...symEmpty };
-      return { bg: '#EFE0C2', bd: '3px solid #26201A', label: '', lc: '#26201A', ...symEmpty };
+    viewModel.lSlots = [1, 2, 3, 4, 5].map(slotNumber => {
+      if (slotNumber <= state.lib) return { bg: '#46688B', bd: '3px solid #26201A', label: '', lc: '#F2E6CE', ...liberalSymbol };
+      if (slotNumber === 5) return { bg: '#EFE0C2', bd: '3px solid #26201A', label: strings.winSlot, lc: '#26201A', ...emptySymbol };
+      return { bg: '#EFE0C2', bd: '3px solid #26201A', label: '', lc: '#26201A', ...emptySymbol };
     });
-    vals.dots = [0, 1, 2].map(i => ({ bg: i < s.tracker ? '#26201A' : '#EFE0C2' }));
-    vals.trackerNote = s.tracker === 2 ? L.trackerNote1 : L.trackerNote3;
-    vals.trackerNoteColor = s.tracker === 2 ? '#DD5126' : '#6B5A43';
-    vals.deckLine1 = L.deckLine1(s.deck.length);
-    vals.deckLine2 = L.deckLine2(s.discard.length);
-    vals.dashInstr = L.dashInstr(this.name(s.presidentIdx));
-    vals.chips = s.players.map((p, i) => ({
-      name: p.name,
-      bg: i === s.presidentIdx && p.alive ? '#26201A' : 'transparent',
-      fg: i === s.presidentIdx && p.alive ? '#F2E6CE' : (p.alive ? '#26201A' : '#B4543B'),
-      bd: p.alive ? '2px solid #26201A' : '2px solid #B4543B',
-      deco: p.alive ? 'none' : 'line-through',
-      op: p.alive ? '1' : '0.55'
+    viewModel.dots = [0, 1, 2].map(index => ({ bg: index < state.tracker ? '#26201A' : '#EFE0C2' }));
+    viewModel.trackerNote = state.tracker === 2 ? strings.trackerNote1 : strings.trackerNote3;
+    viewModel.trackerNoteColor = state.tracker === 2 ? '#DD5126' : '#6B5A43';
+    viewModel.deckLine1 = strings.deckLine1(state.deck.length);
+    viewModel.deckLine2 = strings.deckLine2(state.discard.length);
+    viewModel.dashInstr = strings.dashInstr(this.name(state.presidentIdx));
+    viewModel.chips = state.players.map((player, index) => ({
+      name: player.name,
+      bg: index === state.presidentIdx && player.alive ? '#26201A' : 'transparent',
+      fg: index === state.presidentIdx && player.alive ? '#F2E6CE' : (player.alive ? '#26201A' : '#B4543B'),
+      bd: player.alive ? '2px solid #26201A' : '2px solid #B4543B',
+      deco: player.alive ? 'none' : 'line-through',
+      op: player.alive ? '1' : '0.55'
     }));
-    vals.votePassed = () => this.setState({ screen: 'chan-pick' });
-    vals.voteFailed = () => {
-      const t = this.state.tracker + 1;
-      if (t >= 3) this.doChaos();
-      else this.setState({ tracker: t, ...this.advanceRoundPatch() });
+    viewModel.votePassed = () => this.setState({ screen: 'chan-pick' });
+    viewModel.voteFailed = () => {
+      const nextTracker = this.state.tracker + 1;
+      if (nextTracker >= 3) this.doChaos();
+      else this.setState({ tracker: nextTracker, ...this.advanceRoundPatch() });
     };
 
     // --- chancellor pick ---
-    const cands = s.players
-      .map((p, i) => i)
-      .filter(i => s.players[i].alive && i !== s.presidentIdx && !termLimited.includes(i));
-    vals.chanCandidates = cands.map(i => ({ name: this.name(i), pick: () => this.chanPick(i) }));
-    vals.hasChanNote = termLimited.length > 0;
-    vals.chanNote = termLimited.map(i => this.name(i)).join(', ');
-    vals.chanPickSub = L.chanPickSub(this.name(s.presidentIdx));
+    const candidateIndexes = state.players
+      .map((player, index) => index)
+      .filter(index => state.players[index].alive && index !== state.presidentIdx && !termLimited.includes(index));
+    viewModel.chanCandidates = candidateIndexes.map(index => ({ name: this.name(index), pick: () => this.chanPick(index) }));
+    viewModel.hasChanNote = termLimited.length > 0;
+    viewModel.chanNote = termLimited.map(index => this.name(index)).join(', ');
+    viewModel.chanPickSub = strings.chanPickSub(this.name(state.presidentIdx));
 
     // --- gate ---
-    const g = s.gate || {};
-    vals.gateName = g.name || '';
-    const subFn = g.subKey ? L.gateSubs[g.subKey] : null;
-    vals.gateSub = subFn ? subFn(g.subName) : (g.sub || '');
-    vals.gateBtn = (g.btnKey && L.gateBtns[g.btnKey]) || g.btn || 'OK';
-    vals.gateGo = () => this.setState({ screen: (this.state.gate || {}).next || 'dashboard' });
+    const gate = state.gate || {};
+    viewModel.gateName = gate.name || '';
+    const gateSubBuilder = gate.subKey ? strings.gateSubs[gate.subKey] : null;
+    viewModel.gateSub = gateSubBuilder ? gateSubBuilder(gate.subName) : (gate.sub || '');
+    viewModel.gateBtn = (gate.btnKey && strings.gateBtns[gate.btnKey]) || gate.btn || 'OK';
+    viewModel.gateGo = () => this.setState({ screen: (this.state.gate || {}).next || 'dashboard' });
 
     // --- president draw / chancellor enact ---
-    vals.drawCards = sc === 'pres-draw' ? s.drawn.map((k, i) => cardFace(k, i, true, true)) : [];
-    vals.canDiscard = sc === 'pres-draw' && s.sel != null;
-    vals.noDiscardSel = sc === 'pres-draw' && s.sel == null;
-    vals.confirmDiscard = () => this.confirmDiscard();
-    vals.reshuffled = s.reshuffled;
+    viewModel.drawCards = screen === 'pres-draw' ? state.drawn.map((policyKind, index) => cardFace(policyKind, index, true, true)) : [];
+    viewModel.canDiscard = screen === 'pres-draw' && state.sel != null;
+    viewModel.noDiscardSel = screen === 'pres-draw' && state.sel == null;
+    viewModel.confirmDiscard = () => this.confirmDiscard();
+    viewModel.reshuffled = state.reshuffled;
 
-    vals.enactCards = sc === 'chan-enact' ? s.drawn.map((k, i) => cardFace(k, i, true, true)) : [];
-    vals.canEnact = sc === 'chan-enact' && s.sel != null;
-    vals.noEnactSel = sc === 'chan-enact' && s.sel == null;
-    vals.confirmEnact = () => this.confirmEnact();
-    const selEnact = sc === 'chan-enact' && s.sel != null ? s.drawn[s.sel] : null;
-    vals.enactBtnBg = selEnact === 'L' ? '#46688B' : '#DD5126';
-    vals.enactBtnFg = selEnact === 'L' ? '#F2E6CE' : '#26201A';
-    vals.enactBtnLabel = L.enactBtn(selEnact === 'L' ? L.liberalCard : L.fascistCard);
-    vals.canVeto = sc === 'chan-enact' && s.fas === 5 && !s.vetoRefused;
-    vals.vetoRefusedNote = sc === 'chan-enact' && s.vetoRefused;
-    vals.proposeVeto = () => this.setState({ screen: 'veto' });
+    viewModel.enactCards = screen === 'chan-enact' ? state.drawn.map((policyKind, index) => cardFace(policyKind, index, true, true)) : [];
+    viewModel.canEnact = screen === 'chan-enact' && state.sel != null;
+    viewModel.noEnactSel = screen === 'chan-enact' && state.sel == null;
+    viewModel.confirmEnact = () => this.confirmEnact();
+    const selectedEnactCard = screen === 'chan-enact' && state.sel != null ? state.drawn[state.sel] : null;
+    viewModel.enactBtnBg = selectedEnactCard === 'L' ? '#46688B' : '#DD5126';
+    viewModel.enactBtnFg = selectedEnactCard === 'L' ? '#F2E6CE' : '#26201A';
+    viewModel.enactBtnLabel = strings.enactBtn(selectedEnactCard === 'L' ? strings.liberalCard : strings.fascistCard);
+    viewModel.canVeto = screen === 'chan-enact' && state.fas === 5 && !state.vetoRefused;
+    viewModel.vetoRefusedNote = screen === 'chan-enact' && state.vetoRefused;
+    viewModel.proposeVeto = () => this.setState({ screen: 'veto' });
 
     // --- veto ---
-    vals.vetoBody = L.vetoBody(vals.chanName, vals.presName);
-    vals.vetoAgree = () => {
-      const st = this.state;
-      const discard = [...st.discard, ...st.drawn];
-      const t = st.tracker + 1;
-      if (t >= 3) {
-        this.setState({ discard, drawn: [], sel: null, tracker: t }, () => this.doChaos());
+    viewModel.vetoBody = strings.vetoBody(viewModel.chanName, viewModel.presName);
+    viewModel.vetoAgree = () => {
+      const current = this.state;
+      const discard = [...current.discard, ...current.drawn];
+      const nextTracker = current.tracker + 1;
+      if (nextTracker >= 3) {
+        this.setState({ discard, drawn: [], sel: null, tracker: nextTracker }, () => this.doChaos());
       } else {
-        this.setState({ discard, tracker: t, ...this.advanceRoundPatch() });
+        this.setState({ discard, tracker: nextTracker, ...this.advanceRoundPatch() });
       }
     };
-    vals.vetoRefuse = () => this.setState({ vetoRefused: true, screen: 'chan-enact' });
+    viewModel.vetoRefuse = () => this.setState({ vetoRefused: true, screen: 'chan-enact' });
 
     // --- policy result ---
-    const F = s.lastEnacted === 'F';
-    vals.resultTitle = L.resultTitle(F);
-    vals.resultBg = F ? '#DD5126' : '#46688B';
-    vals.resultFg = F ? '#26201A' : '#F2E6CE';
-    vals.resultSub = F ? 'rgba(38,32,26,0.7)' : 'rgba(242,230,206,0.75)';
-    vals.resultCounts = L.resultCounts(F, s.fas, s.lib);
-    vals.resultChaos = s.chaos;
-    vals.hasPower = !!s.pendingPower;
-    vals.resultPowerName = s.pendingPower ? L.powerNames[s.pendingPower] : '';
-    vals.resultBtnLabel = s.pendingPower ? L.unlockPower : L.nextRoundBtn;
-    vals.resultContinue = () => this.continueFromResult();
+    const fascistEnacted = state.lastEnacted === 'F';
+    viewModel.resultTitle = strings.resultTitle(fascistEnacted);
+    viewModel.resultBg = fascistEnacted ? '#DD5126' : '#46688B';
+    viewModel.resultFg = fascistEnacted ? '#26201A' : '#F2E6CE';
+    viewModel.resultSub = fascistEnacted ? 'rgba(38,32,26,0.7)' : 'rgba(242,230,206,0.75)';
+    viewModel.resultCounts = strings.resultCounts(fascistEnacted, state.fas, state.lib);
+    viewModel.resultChaos = state.chaos;
+    viewModel.hasPower = !!state.pendingPower;
+    viewModel.resultPowerName = state.pendingPower ? strings.powerNames[state.pendingPower] : '';
+    viewModel.resultBtnLabel = state.pendingPower ? strings.unlockPower : strings.nextRoundBtn;
+    viewModel.resultContinue = () => this.continueFromResult();
 
     // --- power pick ---
-    const pk = s.pendingPower;
-    const pName = this.name(s.presidentIdx);
-    vals.powerTitle = pk ? L.powerNames[pk] : '';
-    vals.powerDesc = pk && L.powerDescs[pk] ? L.powerDescs[pk](pName) : '';
-    const targets = s.players
-      .map((p, i) => i)
-      .filter(i => s.players[i].alive && i !== s.presidentIdx && (pk !== 'investigate' || !s.players[i].investigated));
-    vals.powerTargets = targets.map(i => ({ name: this.name(i), pick: () => this.pickPowerTarget(i) }));
+    const power = state.pendingPower;
+    const presidentName = this.name(state.presidentIdx);
+    viewModel.powerTitle = power ? strings.powerNames[power] : '';
+    viewModel.powerDesc = power && strings.powerDescs[power] ? strings.powerDescs[power](presidentName) : '';
+    const targetIndexes = state.players
+      .map((player, index) => index)
+      .filter(index => state.players[index].alive && index !== state.presidentIdx && (power !== 'investigate' || !state.players[index].investigated));
+    viewModel.powerTargets = targetIndexes.map(index => ({ name: this.name(index), pick: () => this.pickPowerTarget(index) }));
 
     // --- investigation result ---
-    const tgt = s.invTarget != null ? s.players[s.invTarget] : null;
-    vals.invName = tgt ? tgt.name : '';
-    vals.invPartyWord = tgt ? (tgt.role === 'liberal' ? L.invParty.lib : L.invParty.fas) : '';
-    vals.invPartyColor = tgt && tgt.role === 'liberal' ? '#46688B' : '#DD5126';
-    vals.invDone = () => this.setState(this.advanceRoundPatch());
+    const investigationTarget = state.invTarget != null ? state.players[state.invTarget] : null;
+    viewModel.invName = investigationTarget ? investigationTarget.name : '';
+    viewModel.invPartyWord = investigationTarget ? (investigationTarget.role === 'liberal' ? strings.invParty.lib : strings.invParty.fas) : '';
+    viewModel.invPartyColor = investigationTarget && investigationTarget.role === 'liberal' ? '#46688B' : '#DD5126';
+    viewModel.invDone = () => this.setState(this.advanceRoundPatch());
 
     // --- peek ---
-    vals.peekCards = sc === 'peek' ? s.deck.slice(0, 3).map((k, i) => cardFace(k, i, false, false)) : [];
-    vals.peekDone = () => this.setState(this.advanceRoundPatch());
+    viewModel.peekCards = screen === 'peek' ? state.deck.slice(0, 3).map((policyKind, index) => cardFace(policyKind, index, false, false)) : [];
+    viewModel.peekDone = () => this.setState(this.advanceRoundPatch());
 
     // --- execution result ---
-    vals.execName = s.execName;
-    vals.execDone = () => this.setState(this.advanceRoundPatch());
+    viewModel.execName = state.execName;
+    viewModel.execDone = () => this.setState(this.advanceRoundPatch());
 
     // --- game over ---
-    const libWin = s.winner === 'liberal';
-    vals.overTitle = L.overTitles[s.winner || 'liberal'];
-    vals.overBg = libWin ? '#46688B' : '#DD5126';
-    vals.overFg = libWin ? '#F2E6CE' : '#26201A';
-    vals.overSub = libWin ? 'rgba(242,230,206,0.75)' : 'rgba(38,32,26,0.7)';
-    const wrFn = s.winKey ? L.winReasons[s.winKey] : null;
-    vals.overReason = wrFn ? wrFn(s.winName) : (s.winReason || '');
-    vals.revealRows = s.players.map(p => ({
-      name: p.name,
-      roleWord: L.roleNames[p.role],
-      roleColor: roleColors[p.role],
-      dead: !p.alive,
-      deco: p.alive ? 'none' : 'line-through'
+    const liberalWon = state.winner === 'liberal';
+    viewModel.overTitle = strings.overTitles[state.winner || 'liberal'];
+    viewModel.overBg = liberalWon ? '#46688B' : '#DD5126';
+    viewModel.overFg = liberalWon ? '#F2E6CE' : '#26201A';
+    viewModel.overSub = liberalWon ? 'rgba(242,230,206,0.75)' : 'rgba(38,32,26,0.7)';
+    const winReasonBuilder = state.winKey ? strings.winReasons[state.winKey] : null;
+    viewModel.overReason = winReasonBuilder ? winReasonBuilder(state.winName) : (state.winReason || '');
+    viewModel.revealRows = state.players.map(player => ({
+      name: player.name,
+      roleWord: strings.roleNames[player.role],
+      roleColor: roleColors[player.role],
+      dead: !player.alive,
+      deco: player.alive ? 'none' : 'line-through'
     }));
-    vals.playAgain = () => this.startGame();
-    vals.toSetup = () => this.setState({ ...this.freshApp(), lang: s.lang, count: s.count, useNames: s.useNames, drafts: [...s.drafts] });
+    viewModel.playAgain = () => this.startGame();
+    viewModel.toSetup = () => this.setState({ ...this.freshApp(), lang: state.lang, count: state.count, useNames: state.useNames, drafts: [...state.drafts] });
 
     // --- rules ---
-    const rc = s.players.length || s.count;
-    const rLib = this.libCountFor(rc);
-    const rFas = rc - rLib - 1;
-    vals.rulesRoleLine = L.rulesRoleLine(rc, rLib, rFas);
-    vals.rulesPowersH = L.rulesPowersH(rc);
-    vals.rulesPowers = Object.keys(chart).map(k => ({ slot: k, text: L.powerNames[chart[k]] }));
+    const rulesPlayerCount = state.players.length || state.count;
+    const rulesLiberalCount = this.libCountFor(rulesPlayerCount);
+    const rulesFascistCount = rulesPlayerCount - rulesLiberalCount - 1;
+    viewModel.rulesRoleLine = strings.rulesRoleLine(rulesPlayerCount, rulesLiberalCount, rulesFascistCount);
+    viewModel.rulesPowersH = strings.rulesPowersH(rulesPlayerCount);
+    viewModel.rulesPowers = Object.keys(powerChart).map(slotNumber => ({ slot: slotNumber, text: strings.powerNames[powerChart[slotNumber]] }));
 
-    return vals;
+    return viewModel;
   }
 }
 mountDC(Component);
