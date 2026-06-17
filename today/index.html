@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Today — date puzzle</title>
+<script>
+/* ============================================================
+   Minimal template runtime.
+   Drives the existing <sc-if>/<sc-for>/{{ }} markup and the
+   `class Component extends DCLogic` logic class below — replaces
+   the original proprietary DC runtime, no behaviour change.
+   ============================================================ */
+(function () {
+  // Look a name up first in the local loop scope, then in the component's view model.
+  function resolveName(name, scope, viewModel) {
+    return Object.prototype.hasOwnProperty.call(scope, name) ? scope[name] : viewModel[name];
+  }
+  // Bindings are only simple paths ("a", "a.b.c") or the literals true/false.
+  function evaluateExpression(expression, scope, viewModel) {
+    expression = expression.trim();
+    if (expression === 'true') return true;
+    if (expression === 'false') return false;
+    var pathSegments = expression.split('.');
+    var value = resolveName(pathSegments[0], scope, viewModel);
+    for (var depth = 1; depth < pathSegments.length; depth++) {
+      value = (value == null) ? undefined : value[pathSegments[depth]];
+    }
+    return value;
+  }
+  // Extract the expression from a single-binding attribute value, e.g. "{{ isSetup }}" -> "isSetup".
+  function unwrapBinding(attributeValue) {
+    return (attributeValue || '').replace(/[{}]/g, '').trim();
+  }
+  // Replace every {{ ... }} inside a string of text with its evaluated value.
+  function interpolate(text, scope, viewModel) {
+    return text.replace(/{{\s*([^}]+?)\s*}}/g, function (fullMatch, expression) {
+      var value = evaluateExpression(expression, scope, viewModel);
+      return value == null ? '' : String(value);
+    });
+  }
+  // HTML lowercases attribute names, so onClick -> onclick, onPointerDown -> onpointerdown, etc.
+  var DOM_EVENT_BY_ATTRIBUTE = {
+    onclick: 'click',
+    onchange: 'change',
+    onpointerdown: 'pointerdown',
+    ondoubleclick: 'dblclick'
+  };
+
+  function renderChildren(node, scope, viewModel) {
+    var renderedNodes = [];
+    var childNodeList = node.childNodes;
+    for (var index = 0; index < childNodeList.length; index++) {
+      renderedNodes = renderedNodes.concat(renderNode(childNodeList[index], scope, viewModel));
+    }
+    return renderedNodes;
+  }
+  // Render one template node into an array of real DOM nodes.
+  function renderNode(node, scope, viewModel) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return [document.createTextNode(interpolate(node.nodeValue, scope, viewModel))];
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
+    var tagName = node.tagName.toLowerCase();
+
+    if (tagName === 'sc-if') {
+      return evaluateExpression(unwrapBinding(node.getAttribute('value')), scope, viewModel)
+        ? renderChildren(node, scope, viewModel)
+        : [];
+    }
+
+    if (tagName === 'sc-for') {
+      var items = evaluateExpression(unwrapBinding(node.getAttribute('list')), scope, viewModel) || [];
+      var itemName = node.getAttribute('as');
+      var renderedItems = [];
+      for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        var loopScope = {};
+        for (var outerName in scope) {
+          if (Object.prototype.hasOwnProperty.call(scope, outerName)) loopScope[outerName] = scope[outerName];
+        }
+        loopScope[itemName] = items[itemIndex];
+        renderedItems = renderedItems.concat(renderChildren(node, loopScope, viewModel));
+      }
+      return renderedItems;
+    }
+
+    // Fully static subtree (no bindings, no sc-*): clone as-is (fast, and keeps any namespaced nodes intact).
+    var outerHtml = node.outerHTML;
+    if (outerHtml.indexOf('{{') === -1 && !/<sc-(if|for)\b/i.test(outerHtml)) return [node.cloneNode(true)];
+
+    var element = document.createElement(node.tagName);
+    for (var attrIndex = 0; attrIndex < node.attributes.length; attrIndex++) {
+      var attributeName = node.attributes[attrIndex].name;
+      var attributeValue = node.attributes[attrIndex].value;
+      if (attributeName.indexOf('hint-placeholder') === 0) continue;
+      if (Object.prototype.hasOwnProperty.call(DOM_EVENT_BY_ATTRIBUTE, attributeName)) {
+        var handler = evaluateExpression(unwrapBinding(attributeValue), scope, viewModel);
+        if (typeof handler === 'function') element.addEventListener(DOM_EVENT_BY_ATTRIBUTE[attributeName], handler);
+        continue;
+      }
+      var resolvedValue = interpolate(attributeValue, scope, viewModel);
+      element.setAttribute(attributeName, resolvedValue);
+      if (attributeName === 'value') element.value = resolvedValue;
+    }
+    renderChildren(node, scope, viewModel).forEach(function (child) { element.appendChild(child); });
+    return [element];
+  }
+
+  // Base class the logic extends: shallow-merge setState + re-render + lifecycle hook.
+  window.DCLogic = function () {};
+  window.DCLogic.prototype.setState = function (patch, callback) {
+    var nextState = (typeof patch === 'function') ? patch(this.state) : patch;
+    Object.assign(this.state, nextState);
+    if (this.rerender) this.rerender();
+    if (this.componentDidUpdate) this.componentDidUpdate();
+    if (typeof callback === 'function') callback();
+  };
+
+  window.mountDC = function (ComponentClass) {
+    var rootElement = document.querySelector('x-dc');
+    var appRoot = rootElement.querySelector(':scope > div');   // the app root
+    var template = appRoot.cloneNode(true);                    // pristine template, never mutated
+    var mountPoint = document.createElement('div');
+    appRoot.replaceWith(mountPoint);
+    var app = new ComponentClass({});
+    app.rerender = function () {
+      var viewModel = app.renderVals();
+      var renderedNodes = renderNode(template, {}, viewModel);
+      while (mountPoint.firstChild) mountPoint.removeChild(mountPoint.firstChild);
+      renderedNodes.forEach(function (renderedNode) { mountPoint.appendChild(renderedNode); });
+    };
+    app.rerender();
+    if (app.componentDidMount) app.componentDidMount();
+  };
+})();
+</script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  @keyframes todayPop { 0%{transform:scale(.7);opacity:0} 60%{transform:scale(1.04)} 100%{transform:scale(1);opacity:1} }
+  @keyframes todayConf { 0%{transform:translateY(-10px) rotate(0);opacity:1} 100%{transform:translateY(160px) rotate(540deg);opacity:0} }
+  html,body{ margin:0; height:100%; }
+  *{ -webkit-tap-highlight-color:transparent; }
+</style>
+</helmet>
+<div style="height:100vh;background:#f4f1ea;font-family:'Hanken Grotesk',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;overflow:hidden;box-sizing:border-box;position:relative;">
+
+  <div data-header="" style="width:100%;max-width:540px;display:flex;flex-direction:column;gap:7px;padding:11px 13px 5px;box-sizing:border-box;flex:none;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;">
+      <div style="min-width:0;">
+        <div style="font-family: Space Grotesk; font-weight: 700; font-size: 40px; letter-spacing: .5px; color: #26241f; line-height: 1">{{ titleLabel }}</div>
+        <div style="font-size:12px;color:#6f6b62;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">Cover everything except <span style="font-weight:700;color:#26241f;">{{ datePuzzle }}</span></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;font-size:12px;color:#8a857b;flex:none;">
+        <span style="font-weight:600;font-variant-numeric:tabular-nums;">{{ timeLabel }} {{ timeStr }}</span>
+        <span style="color:#cfc8ba;">·</span>
+        <span style="font-weight:600;font-variant-numeric:tabular-nums;">{{ placedLabel }} {{ placedStr }}</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <button onClick="{{ prevDay }}" style="width:30px;height:30px;border:1px solid #ddd8cf;background:#fff;border-radius:9px;font-size:15px;color:#3a382f;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">‹</button>
+      <button onClick="{{ goToday }}" style="padding:6px 10px;border:1px solid #ddd8cf;background:#fff;border-radius:9px;font-family:'Hanken Grotesk';font-size:12.5px;font-weight:600;color:#3a382f;cursor:pointer;flex:none;">{{ todayLabel }}</button>
+      <button onClick="{{ nextDay }}" style="width:30px;height:30px;border:1px solid #ddd8cf;background:#fff;border-radius:9px;font-size:15px;color:#3a382f;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">›</button>
+      <div style="flex:1 1 8px;min-width:6px;"></div>
+      <button onClick="{{ rotate }}" title="R" style="padding:6px 10px;border:1px solid #ddd8cf;background:#fff;border-radius:9px;font-family:'Hanken Grotesk';font-size:12.5px;font-weight:600;color:#3a382f;cursor:pointer;flex:none;">{{ rotateLabel }}</button>
+      <button onClick="{{ flip }}" title="F" style="padding:6px 10px;border:1px solid #ddd8cf;background:#fff;border-radius:9px;font-family:'Hanken Grotesk';font-size:12.5px;font-weight:600;color:#3a382f;cursor:pointer;flex:none;">{{ flipLabel }}</button>
+      <button onClick="{{ reset }}" style="padding:6px 10px;border:1px solid #ddd8cf;background:#fff;border-radius:9px;font-family:'Hanken Grotesk';font-size:12.5px;font-weight:600;color:#3a382f;cursor:pointer;flex:none;">{{ resetLabel }}</button>
+      <button onClick="{{ hint }}" style="padding:6px 11px;border:1px solid #e0931f;background:#fbeccb;border-radius:9px;font-family:'Hanken Grotesk';font-size:12.5px;font-weight:700;color:#8a5600;cursor:pointer;flex:none;">{{ hintLabel }}</button>
+    </div>
+  </div>
+
+  <div style="flex:1 1 0;width:100%;display:flex;align-items:center;justify-content:center;min-height:0;padding:4px 6px 10px;box-sizing:border-box;">
+    <div data-stagewrap="" style="position:relative;width:{{ scaledW }}px;height:{{ scaledH }}px;flex:none;">
+      <div data-stage="" style="position:absolute;top:0;left:0;width:{{ stageW }}px;height:{{ stageH }}px;transform:scale({{ scale }});transform-origin:top left;">
+        <div style="{{ panelStyle }}"></div>
+        <sc-for list="{{ deadCells }}" as="dc" hint-placeholder-count="6">
+          <div style="{{ dc.style }}"></div>
+        </sc-for>
+        <sc-for list="{{ boardCells }}" as="cell" hint-placeholder-count="50">
+          <div data-cell="{{ cell.idx }}" style="{{ cell.style }}">{{ cell.label }}</div>
+        </sc-for>
+        <sc-for list="{{ pieces }}" as="pc" hint-placeholder-count="9">
+          <div data-id="{{ pc.id }}" onPointerDown="{{ onDown }}" onDoubleClick="{{ onDbl }}" style="{{ pc.style }}">
+            <sc-for list="{{ pc.squares }}" as="sq" hint-placeholder-count="6">
+              <div style="{{ sq.style }}"></div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <sc-for list="{{ errorCells }}" as="ec" hint-placeholder-count="0">
+          <div style="{{ ec.style }}"></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{ won }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;bottom:0;width:100%;max-width:540px;margin:0 auto;padding:0 13px 13px;box-sizing:border-box;z-index:50;">
+      <div style="position:relative;background:#fff;border:1px solid #e6e1d7;border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 10px 28px rgba(0,0,0,.08);animation:todayPop .35s ease;overflow:hidden;">
+        <sc-for list="{{ confetti }}" as="cf" hint-placeholder-count="0">
+          <div style="{{ cf.style }}"></div>
+        </sc-for>
+        <div style="flex:1;min-width:0;text-align:left;">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:3px;color:#e0931f;font-weight:600;text-transform:uppercase;">{{ solvedKicker }}</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;color:#26241f;margin-top:2px;">{{ solvedTitle }}</div>
+          <div style="font-size:13px;color:#7a766d;margin-top:3px;">{{ solvedSub }}</div>
+        </div>
+        <button onClick="{{ reset }}" style="flex:none;padding:11px 22px;border:none;background:#26241f;color:#fff;border-radius:12px;font-family:'Hanken Grotesk';font-size:14px;font-weight:600;cursor:pointer;">{{ againLabel }}</button>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script>
+class Component extends DCLogic {
+  COLS=7; ROWS=8; CELL=42; STEP=48; GAP=6;
+  DEAD=[6,13,49,50,51,52];
+  monthIdx=[0,1,2,3,4,5,7,8,9,10,11,12];
+  dateIdx=[14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44];
+  weekIdx=[45,46,47,48,53,54,55];
+  monthEN=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  monthShort=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  weekEN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  monthFullEN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  weekFullEN=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  validColor='#2f9e5f';
+  PIECES=[
+    {id:'A',color:'#e8615a',base:[[0,0],[0,1],[1,0],[1,1],[2,0]]},
+    {id:'B',color:'#ee8a48',base:[[0,0],[1,0],[2,0],[3,0],[3,1]]},
+    {id:'C',color:'#f2b13c',base:[[0,1],[1,0],[1,1],[2,1],[3,1]]},
+    {id:'D',color:'#86bd57',base:[[0,1],[1,1],[2,0],[2,1],[3,0]]},
+    {id:'E',color:'#34ad9a',base:[[0,0],[0,1],[0,2],[1,1],[2,1]]},
+    {id:'F',color:'#3f93d4',base:[[0,0],[0,2],[1,0],[1,1],[1,2]]},
+    {id:'G',color:'#6f74d6',base:[[0,0],[1,0],[2,0],[2,1],[2,2]]},
+    {id:'H',color:'#b06fc9',base:[[0,0],[0,1],[1,0],[1,1],[2,0],[2,1]]},
+    {id:'I',color:'#e86fa0',base:[[0,0],[1,0],[2,0],[3,0],[1,1],[2,1]]}
+  ];
+  i18n={
+    title:'TODAY',
+    leave:'leave',
+    rotate:'Rotate',
+    flip:'Flip',
+    hint:'Hint',
+    solve:'Solve',
+    reset:'Reset',
+    today:'Today',
+    placed:'Pieces',
+    time:'Time',
+    solved:'Solved!',
+    again:'Play again'
+  };
+
+  state={date:null,pieces:[],selectedId:null,draggingId:null,started:false,elapsed:0,won:false,scale:1};
+
+  constructor(props){ super(props); this.buildStatic(); }
+
+  componentDidMount(){
+    const td=new Date();
+    const date={y:td.getFullYear(),m:td.getMonth(),d:td.getDate()};
+    this.setState({date,pieces:this.makePieces()});
+    this._move=(e)=>this.onMove(e); this._up=(e)=>this.onUp(e); this._key=(e)=>this.onKey(e); this._resize=()=>this.rescale();
+    window.addEventListener('pointermove',this._move);
+    window.addEventListener('pointerup',this._up);
+    window.addEventListener('keydown',this._key);
+    window.addEventListener('resize',this._resize);
+    this.rescale();
+    setTimeout(()=>this.rescale(),60); setTimeout(()=>this.rescale(),350);
+    this._timer=setInterval(()=>{ if(this.state.started&&!this.state.won) this.setState({elapsed:(Date.now()-this._start)/1000}); },250);
+  }
+  componentWillUnmount(){
+    window.removeEventListener('pointermove',this._move);
+    window.removeEventListener('pointerup',this._up);
+    window.removeEventListener('keydown',this._key);
+    window.removeEventListener('resize',this._resize);
+    clearInterval(this._timer);
+  }
+  componentDidUpdate(){ this.rescale(); }
+
+  rescale(){
+    const vw=window.innerWidth, vh=window.innerHeight;
+    const hdr=document.querySelector('[data-header]');
+    const hH=hdr?hdr.getBoundingClientRect().height:64;
+    const availW=vw-14, availH=vh-hH-18;
+    let s=Math.min(availW/this._stageW, availH/this._stageH);
+    s=Math.min(s,1.25); s=Math.max(s,0.12);
+    if(Math.abs(s-this.state.scale)>0.004) this.setState({scale:s});
+  }
+
+  buildStatic(){
+    this.deadSet=new Set(this.DEAD);
+    this.live=[]; for(let i=0;i<56;i++) if(!this.deadSet.has(i)) this.live.push(i);
+    this.meta={};
+    this.monthIdx.forEach((idx,k)=>{ this.meta[idx]={type:'month',label:this.monthEN[k]}; });
+    this.weekIdx.forEach((idx,k)=>{ this.meta[idx]={type:'week',label:this.weekEN[k]}; });
+    this.dateIdx.forEach((idx,k)=>{ this.meta[idx]={type:'date',label:String(k+1)}; });
+    this.buildSolver();
+    this.initLayout();
+  }
+
+  normalize(cells){ const mr=Math.min(...cells.map(c=>c[0])),mc=Math.min(...cells.map(c=>c[1])); return cells.map(c=>[c[0]-mr,c[1]-mc]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]); }
+  rot(cells){ return this.normalize(cells.map(c=>[c[1],-c[0]])); }
+  flipCells(cells){ return this.normalize(cells.map(c=>[c[0],-c[1]])); }
+  orientations(base){ const seen=new Set(),res=[]; let cur=base.map(c=>[c[0],c[1]]); for(let f=0;f<2;f++){ for(let r=0;r<4;r++){ const n=this.normalize(cur); const k=n.map(c=>c[0]+','+c[1]).join(';'); if(!seen.has(k)){seen.add(k);res.push(n);} cur=cur.map(c=>[c[1],-c[0]]); } cur=cur.map(c=>[c[0],-c[1]]); } return res; }
+  compactOrient(base){ const ors=this.orientations(base); let best=ors[0],bk=[99,99]; for(const o of ors){ const h=Math.max(...o.map(c=>c[0]))+1, w=Math.max(...o.map(c=>c[1]))+1; if(h<bk[0]||(h===bk[0]&&w<bk[1])){ best=o; bk=[h,w]; } } return best; }
+
+  buildSolver(){
+    this.placements=[]; this.covering=new Map(); this.live.forEach(i=>this.covering.set(i,[]));
+    this.PIECES.forEach((p,pi)=>{
+      const ors=this.orientations(p.base); const list=[];
+      ors.forEach(o=>{
+        const maxr=Math.max(...o.map(c=>c[0])),maxc=Math.max(...o.map(c=>c[1]));
+        for(let dr=0;dr+maxr<this.ROWS;dr++) for(let dc=0;dc+maxc<this.COLS;dc++){
+          const cells=o.map(c=>(c[0]+dr)*7+(c[1]+dc));
+          if(cells.some(i=>this.deadSet.has(i))) continue;
+          let lo=0,hi=0; cells.forEach(i=>{ if(i<32) lo|=1<<i; else hi|=1<<(i-32); });
+          const pl={p:pi,lo,hi,cells}; list.push(pl); cells.forEach(i=>this.covering.get(i).push(pl));
+        }
+      });
+      this.placements.push(list);
+    });
+  }
+
+  initLayout(){
+    const boardW=this.COLS*this.STEP-this.GAP, boardH=this.ROWS*this.STEP-this.GAP;
+    this._compact={}; this.PIECES.forEach(p=>{ this._compact[p.id]=this.compactOrient(p.base); });
+    this._stageW=356;
+    this.bx=Math.round((this._stageW-boardW)/2);
+    this.by=18;
+    const trayY0=this.by+boardH+16;
+    // grid bin-pack pieces by their actual cells (interlocking), 7 columns wide
+    const cols=this.COLS;
+    const order=this.PIECES.map(p=>{ const c=this._compact[p.id]; const mr=Math.max(...c.map(x=>x[0])),mc=Math.max(...c.map(x=>x[1])); return {id:p.id,cells:c,h:mr+1,w:mc+1,size:c.length}; });
+    order.sort((a,b)=>b.size-a.size||b.h-a.h||b.w-a.w);
+    const occ=new Set(); const key=(r,c)=>r*100+c; let maxRow=0;
+    this._trayCell={};
+    order.forEach(it=>{
+      let placed=false;
+      for(let R=0;R<40&&!placed;R++){
+        for(let C=0;C<=cols-it.w&&!placed;C++){
+          const fits=it.cells.every(([dr,dc])=>!occ.has(key(R+dr,C+dc)));
+          if(fits){ it.cells.forEach(([dr,dc])=>occ.add(key(R+dr,C+dc))); this._trayCell[it.id]={R,C}; maxRow=Math.max(maxRow,R+it.h); placed=true; }
+        }
+      }
+    });
+    this._trayPos={};
+    this.PIECES.forEach(p=>{ const t=this._trayCell[p.id]; this._trayPos[p.id]={x:this.bx+t.C*this.STEP,y:trayY0+t.R*this.STEP}; });
+    this._stageH=trayY0+maxRow*this.STEP-this.GAP+this.by;
+  }
+
+  makePieces(){
+    return this.PIECES.map(p=>({id:p.id,color:p.color,cells:this._compact[p.id].map(c=>[c[0],c[1]]),placed:false,anchor:null,x:this._trayPos[p.id].x,y:this._trayPos[p.id].y}));
+  }
+
+  targetIndices(){
+    const d=this.state.date; if(!d) return null;
+    const month=this.monthIdx[d.m];
+    const dateI=this.dateIdx[d.d-1];
+    const js=new Date(d.y,d.m,d.d).getDay(); const wk=(js+6)%7;
+    const week=this.weekIdx[wk];
+    return {month,date:dateI,week,set:new Set([month,dateI,week])};
+  }
+  abbr(idx){ return this.meta[idx].label; }
+
+  stageEl(){ return document.querySelector('[data-stage]'); }
+
+  occupancyExcept(id){
+    const occ=new Set();
+    this.state.pieces.forEach(p=>{ if(p.placed&&p.id!==id) p.cells.forEach(([dr,dc])=>occ.add((p.anchor.r+dr)*7+(p.anchor.c+dc))); });
+    return occ;
+  }
+
+  onDown(e){
+    const id=e.currentTarget.getAttribute('data-id');
+    const piece=this.state.pieces.find(p=>p.id===id); if(!piece) return;
+    const stage=this.stageEl(); if(!stage) return;
+    const rect=stage.getBoundingClientRect();
+    const scale=rect.width/stage.offsetWidth||1;
+    const psx=(e.clientX-rect.left)/scale, psy=(e.clientY-rect.top)/scale;
+    this.drag={id,el:e.currentTarget,grabDX:psx-piece.x,grabDY:psy-piece.y,
+      prev:{x:piece.x,y:piece.y,placed:piece.placed,anchor:piece.anchor},
+      curX:piece.x,curY:piece.y,occ:this.occupancyExcept(id),moved:false};
+    try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(err){}
+    const upd={selectedId:id,draggingId:id};
+    if(!this.state.started){ this._start=Date.now(); upd.started=true; }
+    this.setState(upd);
+    e.preventDefault();
+  }
+  onMove(e){
+    if(!this.drag) return;
+    const stage=this.stageEl(); if(!stage) return;
+    const rect=stage.getBoundingClientRect();
+    const scale=rect.width/stage.offsetWidth||1;
+    const {grabDX,grabDY}=this.drag;
+    const x=(e.clientX-rect.left)/scale-grabDX, y=(e.clientY-rect.top)/scale-grabDY;
+    this.drag.curX=x; this.drag.curY=y; this.drag.moved=true;
+    // The timer-driven re-render replaces the piece nodes, so re-query the live element each move.
+    const el=stage.querySelector('[data-id="'+this.drag.id+'"]')||this.drag.el;
+    if(el) el.style.transform='translate('+x+'px,'+y+'px)';
+    this.preview(x,y);
+  }
+  snapAnchor(x,y,piece,occ){
+    const C=Math.round((x-this.bx)/this.STEP), R=Math.round((y-this.by)/this.STEP);
+    const idxs=[];
+    for(const [dr,dc] of piece.cells){ const r=R+dr,c=C+dc; if(r<0||r>=this.ROWS||c<0||c>=this.COLS) return null; const i=r*7+c; if(occ.has(i)) return null; idxs.push(i); }
+    return {R,C,idxs};
+  }
+  preview(x,y){
+    if(this._hl) this._hl.forEach(el=>{ el.style.outline=''; });
+    this._hl=[];
+    const piece=this.state.pieces.find(p=>p.id===this.drag.id);
+    const snap=this.snapAnchor(x,y,piece,this.drag.occ); if(!snap) return;
+    const stage=this.stageEl();
+    snap.idxs.forEach(i=>{ const el=stage.querySelector('[data-cell="'+i+'"]'); if(el){ el.style.outline='3px solid '+this.validColor; el.style.outlineOffset='-3px'; this._hl.push(el); } });
+  }
+  onUp(e){
+    if(!this.drag) return;
+    if(this._hl){ this._hl.forEach(el=>{ el.style.outline=''; }); this._hl=[]; }
+    const d=this.drag; this.drag=null;
+    const piece=this.state.pieces.find(p=>p.id===d.id);
+    const snap=d.moved?this.snapAnchor(d.curX,d.curY,piece,d.occ):null;
+    const pieces=this.state.pieces.map(p=>{
+      if(p.id!==d.id) return p;
+      if(snap) return {...p,placed:true,anchor:{r:snap.R,c:snap.C},x:this.bx+snap.C*this.STEP,y:this.by+snap.R*this.STEP};
+      if(d.moved) return {...p,placed:false,anchor:null,x:d.curX,y:d.curY};
+      return {...p,placed:d.prev.placed,anchor:d.prev.anchor,x:d.prev.x,y:d.prev.y};
+    });
+    const won=this.checkWin(pieces);
+    this.setState({pieces,draggingId:null,won});
+  }
+  onDbl(e){ const id=e.currentTarget.getAttribute('data-id'); this.setState({selectedId:id}); this.transformSel('rot',id); }
+  onKey(e){
+    const k=e.key.toLowerCase();
+    if(k==='r'){ this.transformSel('rot'); e.preventDefault(); }
+    else if(k==='f'){ this.transformSel('flip'); e.preventDefault(); }
+  }
+  rotate(){ this.transformSel('rot'); }
+  flip(){ this.transformSel('flip'); }
+  transformSel(kind,forceId){
+    const id=forceId||this.state.selectedId; if(!id) return;
+    const pieces=this.state.pieces.map(p=>{
+      if(p.id!==id) return p;
+      const nc=kind==='rot'?this.rot(p.cells):this.flipCells(p.cells);
+      if(p.placed){
+        const occ=this.occupancyExcept(id);
+        const ok=nc.every(([dr,dc])=>{ const r=p.anchor.r+dr,c=p.anchor.c+dc; if(r<0||r>=this.ROWS||c<0||c>=this.COLS) return false; const i=r*7+c; return !occ.has(i); });
+        if(ok) return {...p,cells:nc};
+        return {...p,cells:nc,placed:false,anchor:null};
+      }
+      return {...p,cells:nc};
+    });
+    this.setState({pieces,won:this.checkWin(pieces)});
+  }
+
+  checkWin(pieces){
+    const placed=pieces.filter(p=>p.placed);
+    if(placed.length!==this.PIECES.length) return false;
+    const covered=new Set();
+    placed.forEach(p=>p.cells.forEach(([dr,dc])=>covered.add((p.anchor.r+dr)*7+(p.anchor.c+dc))));
+    const t=this.targetIndices();
+    for(const i of this.live){ const isT=t.set.has(i),isC=covered.has(i); if(isT&&isC) return false; if(!isT&&!isC) return false; }
+    return true;
+  }
+
+  cellsToPlacement(id,indices){
+    const cells=indices.map(i=>[Math.floor(i/7),i%7]);
+    const mr=Math.min(...cells.map(c=>c[0])),mc=Math.min(...cells.map(c=>c[1]));
+    const nc=cells.map(c=>[c[0]-mr,c[1]-mc]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    return {cells:nc,anchor:{r:mr,c:mc},x:this.bx+mc*this.STEP,y:this.by+mr*this.STEP};
+  }
+  solveFor(tset){
+    const occ={lo:0,hi:0};
+    const setb=(i)=>{ if(i<32) occ.lo|=1<<i; else occ.hi|=1<<(i-32); };
+    this.DEAD.forEach(setb); tset.forEach(setb);
+    const used=new Array(this.PIECES.length).fill(false);
+    const assign=new Array(this.PIECES.length).fill(null);
+    const live=this.live, covering=this.covering;
+    const isOcc=(i)=> i<32 ? (occ.lo&(1<<i)) : (occ.hi&(1<<(i-32)));
+    const rec=()=>{
+      let L=-1; for(const i of live){ if(!isOcc(i)){ L=i; break; } }
+      if(L===-1) return true;
+      const cands=covering.get(L)||[];
+      for(const pl of cands){ if(used[pl.p]) continue; if((occ.lo&pl.lo)||(occ.hi&pl.hi)) continue;
+        used[pl.p]=true; occ.lo|=pl.lo; occ.hi|=pl.hi; assign[pl.p]=pl.cells;
+        if(rec()) return true;
+        used[pl.p]=false; occ.lo&=~pl.lo; occ.hi&=~pl.hi; assign[pl.p]=null;
+      }
+      return false;
+    };
+    return rec()?assign:null;
+  }
+  hint(){
+    const t=this.targetIndices(); const sol=this.solveFor([t.month,t.date,t.week]); if(!sol) return;
+    let targetPiece=null,solIdx=null,unplacedPiece=null,unplacedSol=null;
+    for(let i=0;i<this.PIECES.length;i++){
+      const p=this.state.pieces.find(pp=>pp.id===this.PIECES[i].id);
+      const cur=p.placed?new Set(p.cells.map(([dr,dc])=>(p.anchor.r+dr)*7+(p.anchor.c+dc))):null;
+      const solSet=new Set(sol[i]);
+      const same=cur&&cur.size===solSet.size&&[...cur].every(x=>solSet.has(x));
+      if(same) continue;
+      if(p.placed){ targetPiece=this.PIECES[i].id; solIdx=sol[i]; break; } // fix a misplaced tile first
+      if(!unplacedPiece){ unplacedPiece=this.PIECES[i].id; unplacedSol=sol[i]; }
+    }
+    if(!targetPiece && unplacedPiece){ targetPiece=unplacedPiece; solIdx=unplacedSol; }
+    if(!targetPiece) return;
+    const solSet=new Set(solIdx);
+    const pl=this.cellsToPlacement(targetPiece,solIdx);
+    let pieces=this.state.pieces.map(p=>{
+      if(p.id===targetPiece) return {...p,...pl,placed:true};
+      if(p.placed){ const occ=p.cells.map(([dr,dc])=>(p.anchor.r+dr)*7+(p.anchor.c+dc)); if(occ.some(i=>solSet.has(i))) return {...p,placed:false,anchor:null,x:this._trayPos[p.id].x,y:this._trayPos[p.id].y}; }
+      return p;
+    });
+    const upd={pieces,selectedId:targetPiece,won:this.checkWin(pieces)};
+    if(!this.state.started){ this._start=Date.now(); upd.started=true; }
+    this.setState(upd);
+  }
+  solve(){
+    const t=this.targetIndices(); const sol=this.solveFor([t.month,t.date,t.week]); if(!sol) return;
+    const pieces=this.state.pieces.map(p=>{
+      const i=this.PIECES.findIndex(pp=>pp.id===p.id);
+      const pl=this.cellsToPlacement(p.id,sol[i]);
+      return {...p,...pl,placed:true};
+    });
+    const upd={pieces,won:this.checkWin(pieces)};
+    if(!this.state.started){ this._start=Date.now(); upd.started=true; }
+    this.setState(upd);
+  }
+  reset(){
+    this.setState({pieces:this.makePieces(),started:false,elapsed:0,won:false,selectedId:null,draggingId:null});
+  }
+  changeDate(delta){
+    const d=this.state.date; const dt=new Date(d.y,d.m,d.d+delta);
+    this.setState({date:{y:dt.getFullYear(),m:dt.getMonth(),d:dt.getDate()},pieces:this.makePieces(),started:false,elapsed:0,won:false,selectedId:null,draggingId:null});
+  }
+  goToday(){ const td=new Date(); this.setState({date:{y:td.getFullYear(),m:td.getMonth(),d:td.getDate()},pieces:this.makePieces(),started:false,elapsed:0,won:false,selectedId:null,draggingId:null}); }
+
+  cellStyle(r,c,type,isT){
+    const left=this.bx+c*this.STEP, top=this.by+r*this.STEP;
+    const fs=type==='date'?'18px':'12.5px'; const fw=type==='date'?'600':'700';
+    const fam=type==='date'?"'Space Grotesk'":"'Hanken Grotesk'";
+    let bg='#faf8f3', color=type==='date'?'#94907f':'#aaa498', shadow='inset 0 0 0 1px rgba(0,0,0,.04)', z='1';
+    if(isT){ bg='#ded8cc'; color='#6f6a5e'; shadow='inset 0 1px 3px rgba(0,0,0,.08)'; z='2'; }
+    return `position:absolute;left:${left}px;top:${top}px;width:${this.CELL}px;height:${this.CELL}px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:${bg};color:${color};font-size:${fs};font-weight:${fw};box-shadow:${shadow};font-family:${fam},sans-serif;letter-spacing:${type==='date'?'0':'.3px'};z-index:${z};box-sizing:border-box;`;
+  }
+  deadStyle(r,c){
+    const left=this.bx+c*this.STEP, top=this.by+r*this.STEP;
+    return `position:absolute;left:${left}px;top:${top}px;width:${this.CELL}px;height:${this.CELL}px;border-radius:9px;background:#ded8cc;box-shadow:inset 0 1px 3px rgba(0,0,0,.08);z-index:1;`;
+  }
+  errorStyle(r,c){
+    const left=this.bx+c*this.STEP, top=this.by+r*this.STEP;
+    return `position:absolute;left:${left}px;top:${top}px;width:${this.CELL}px;height:${this.CELL}px;border-radius:9px;background:#16140f;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18),0 1px 4px rgba(0,0,0,.4);z-index:90;box-sizing:border-box;pointer-events:none;`;
+  }
+
+  fmtTime(s){ const m=Math.floor(s/60),ss=Math.floor(s%60); return m+':'+(ss<10?'0':'')+ss; }
+
+  renderVals(){
+    const S=this.state; const t=this.targetIndices();
+    const L=(k)=>this.i18n[k];
+    const boardW=this.COLS*this.STEP-this.GAP, boardH=this.ROWS*this.STEP-this.GAP;
+    const panelStyle=`position:absolute;left:${this.bx-14}px;top:${this.by-14}px;width:${boardW+28}px;height:${boardH+28}px;background:#e7e2d8;border-radius:20px;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 2px 10px rgba(0,0,0,.05);`;
+    const boardCells=this.live.map(idx=>{
+      const r=Math.floor(idx/7),c=idx%7,m=this.meta[idx];
+      const isT=t?t.set.has(idx):false;
+      const label=m.label;
+      return {idx,label,style:this.cellStyle(r,c,m.type,isT)};
+    });
+    const deadCells=this.DEAD.map(idx=>({style:this.deadStyle(Math.floor(idx/7),idx%7)}));
+    const forbidden=new Set(this.DEAD);
+    if(t){ t.set.forEach(i=>forbidden.add(i)); }
+    const occupied=new Set();
+    S.pieces.forEach(p=>{ if(p.placed && p.anchor && p.id!==S.draggingId){ p.cells.forEach(([dr,dc])=>occupied.add((p.anchor.r+dr)*7+(p.anchor.c+dc))); } });
+    const errorCells=[...forbidden].filter(i=>occupied.has(i)).map(idx=>({style:this.errorStyle(Math.floor(idx/7),idx%7)}));
+    const pieces=S.pieces.map(p=>{
+      const maxr=Math.max(...p.cells.map(c=>c[0])),maxc=Math.max(...p.cells.map(c=>c[1]));
+      const w=(maxc+1)*this.STEP-this.GAP, h=(maxr+1)*this.STEP-this.GAP;
+      const selected=S.selectedId===p.id, dragging=S.draggingId===p.id;
+      let px=p.x, py=p.y;
+      if(dragging && this.drag && this.drag.id===p.id){ px=this.drag.curX; py=this.drag.curY; }
+      const z=dragging?80:(selected?60:(p.placed?20:30));
+      const ring=selected?'drop-shadow(1.6px 0 0 #1f1d19) drop-shadow(-1.6px 0 0 #1f1d19) drop-shadow(0 1.6px 0 #1f1d19) drop-shadow(0 -1.6px 0 #1f1d19) ':'';
+      const filt=ring+((dragging||selected)?'drop-shadow(0 11px 18px rgba(0,0,0,.32))':'drop-shadow(0 2px 4px rgba(0,0,0,.16))');
+      const style=`position:absolute;left:0;top:0;width:${w}px;height:${h}px;transform:translate(${px}px,${py}px);z-index:${z};cursor:grab;touch-action:none;filter:${filt};transition:filter .15s ease;`;
+      const squares=p.cells.map(([dr,dc])=>({style:`position:absolute;left:${dc*this.STEP}px;top:${dr*this.STEP}px;width:${this.CELL}px;height:${this.CELL}px;background:${p.color};border-radius:9px;box-shadow:inset 0 2px 0 rgba(255,255,255,.30),inset 0 0 0 1px rgba(0,0,0,.10),0 1px 2px rgba(0,0,0,.12);box-sizing:border-box;`}));
+      return {id:p.id,style,squares};
+    });
+    let dateStr='',datePuzzle='';
+    const d=S.date;
+    if(d){ const js=new Date(d.y,d.m,d.d).getDay(),wk=(js+6)%7;
+      dateStr=`${this.weekFullEN[wk]}, ${this.monthFullEN[d.m]} ${d.d}, ${d.y}`;
+      datePuzzle=`${this.weekEN[wk]}, ${this.monthShort[d.m]} ${d.d}`;
+    }
+    let leaveStr='';
+    if(t) leaveStr=`Cover everything except current date: ${this.abbr(t.week)} ${this.abbr(t.month)} ${this.abbr(t.date)}`;
+    const placedCount=S.pieces.filter(p=>p.placed).length;
+    const confetti=S.won?Array.from({length:14},(_,i)=>{ const cols=['#e8615a','#f2b13c','#34ad9a','#6f74d6','#e86fa0']; const x=8+i*6.4; const delay=(i%5)*0.12; return {style:`position:absolute;left:${x}%;top:-12px;width:9px;height:14px;background:${cols[i%5]};border-radius:2px;animation:todayConf 1.1s ${delay}s ease-in forwards;`}; }):[];
+    return {
+      panelStyle,boardCells,deadCells,errorCells,pieces,confetti,won:S.won,
+      scale:S.scale.toFixed(4), stageW:this._stageW, stageH:this._stageH,
+      scaledW:Math.round(this._stageW*S.scale), scaledH:Math.round(this._stageH*S.scale),
+      onDown:(e)=>this.onDown(e),onDbl:(e)=>this.onDbl(e),
+      rotate:()=>this.rotate(),flip:()=>this.flip(),hint:()=>this.hint(),solve:()=>this.solve(),reset:()=>this.reset(),
+      prevDay:()=>this.changeDate(-1),nextDay:()=>this.changeDate(1),goToday:()=>this.goToday(),
+      titleLabel:L('title'),dateStr,datePuzzle,leaveStr,
+      rotateLabel:L('rotate'),flipLabel:L('flip'),hintLabel:L('hint'),solveLabel:L('solve'),resetLabel:L('reset'),
+      todayLabel:L('today'),timeLabel:L('time'),placedLabel:L('placed'),
+      timeStr:this.fmtTime(S.elapsed),placedStr:placedCount+'/'+this.PIECES.length,
+      solvedKicker:t&&d?(()=>{ const js=new Date(d.y,d.m,d.d).getDay(),wk=(js+6)%7; return `${this.weekEN[wk]}, ${this.monthShort[d.m]} ${d.d}`; })():'',solvedTitle:L('solved'),solvedSub:this.fmtTime(S.elapsed)+' · '+dateStr,againLabel:L('again')
+    };
+  }
+}
+mountDC(Component);
+</script>
+</body>
+</html>
