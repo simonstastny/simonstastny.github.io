@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5C443">
+<title>Waffle Batter Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #F5C443;        /* header yellow */
+    --page: #FFF9EC;          /* cream page background */
+    --card: #FFFFFF;
+    --ink: #1B1A17;           /* main text */
+    --muted: #5A5345;         /* secondary text */
+    --done: #6E675B;          /* ticked-off rows */
+    --brown: #6B3A12;         /* button symbols, checkboxes */
+    --btn: #FFF1C9;           /* − / + button fill */
+    --btn-hover: #FCE6A6;
+    --rule: #EADFC6;          /* lines between ingredients */
+    --focus: #2457C5;
+    --shadow: 0 1px 2px rgba(80, 55, 15, .06), 0 10px 30px rgba(80, 55, 15, .09);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--page);
+    color: var(--ink);
+    font-family: 'Montserrat', system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Header with waffle-grid texture */
+  .header {
+    background-color: var(--accent);
+    background-image:
+      linear-gradient(rgba(27, 26, 23, .08) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(27, 26, 23, .08) 2px, transparent 2px);
+    background-size: 24px 24px;
+  }
+  .header-inner {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 24px 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .header svg { flex: none; }
+  h1 {
+    margin: 0;
+    font-weight: 800;
+    font-size: clamp(26px, 7.4vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  /* Layout: one column on phones, two columns on wide screens */
+  main {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  @media (min-width: 900px) {
+    .header-inner { max-width: 1080px; padding: 40px 24px 32px; }
+    main {
+      max-width: 1080px;
+      padding: 32px 24px 64px;
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      gap: 32px;
+      align-items: start;
+    }
+  }
+
+  /* Servings card */
+  .card {
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .servings-label {
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .round {
+    font: inherit;
+    font-size: 28px;
+    font-weight: 700;
+    width: 56px;
+    height: 56px;
+    flex: none;
+    border: none;
+    border-radius: 50%;
+    background: var(--btn);
+    color: var(--brown);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .round:hover { background: var(--btn-hover); }
+  .round:active { transform: scale(.96); }
+  .servings-input {
+    font: inherit;
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--ink);
+    width: 100%;
+    min-width: 0;
+    height: 56px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 16px;
+    background: var(--page);
+    text-align: center;
+  }
+  .total { font-size: 15px; color: var(--muted); text-align: center; }
+
+  /* Ingredient list (open, no card) */
+  .list { padding: 4px 8px; display: flex; flex-direction: column; }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    min-height: 48px;
+    border-top: 1px solid var(--rule);
+    cursor: pointer;
+  }
+  .row:first-child { border-top: none; }
+  .row input {
+    width: 26px;
+    height: 26px;
+    accent-color: var(--brown);
+    flex: none;
+    margin: 0;
+  }
+  .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .name { font-weight: 600; font-size: 16px; }
+  .sub { font-size: 13px; color: var(--muted); }
+  .amt { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+  .num { font-weight: 800; font-size: 28px; line-height: 1; letter-spacing: -0.02em; }
+  .unit { font-weight: 600; font-size: 15px; min-width: 26px; }
+  .row:has(input:checked) .name,
+  .row:has(input:checked) .amt { text-decoration: line-through; color: var(--done); }
+
+  .round:focus-visible,
+  .servings-input:focus-visible,
+  .row input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 40 40" fill="#FFF9EC" stroke="#1B1A17" stroke-width="2.5" stroke-linecap="round">
+      <rect x="4" y="4" width="32" height="32" rx="9"/>
+      <path d="M14.7 4v32M25.3 4v32M4 14.7h32M4 25.3h32"/>
+    </svg>
+    <h1>Waffle Batter Calculator</h1>
+  </div>
+</header>
+
+<main>
+  <section class="card" aria-labelledby="servings-label">
+    <label id="servings-label" class="servings-label" for="servings">Servings</label>
+    <div class="stepper">
+      <button type="button" class="round" id="minus" aria-label="One serving fewer">−</button>
+      <input id="servings" class="servings-input" type="number" inputmode="numeric" min="1" step="1" value="3">
+      <button type="button" class="round" id="plus" aria-label="One serving more">+</button>
+    </div>
+    <span class="total" id="total" aria-live="polite"></span>
+  </section>
+
+  <section class="list" id="list" aria-label="Ingredients" aria-live="polite"></section>
+</main>
+
+<script>
+  // ── Recipe: the base recipe makes 3 servings ──────────────────────────
+  const RECIPE = {
+    serves: 3,
+    flour: 225,          // g plain flour
+    bakingPowder: 10,    // g
+    saltPer100gFlour: 1.3, // g salt per 100 g flour
+    butter: 50,          // g, melted
+    eggs: 1,             // large
+    milk: 250,           // ml
+  };
+  const EGG_GRAMS = 50;        // a large egg out of the shell, approx.
+  const BP_GRAMS_PER_TSP = 4;  // baking powder, approx.
+  const SALT_GRAMS_PER_TSP = 6; // fine salt, approx.
+  const MAX_SERVINGS = 600;
+
+  // ── Formatting helpers ───────────────────────────────────────────────
+  const fmt = (n, dp = 0) => {
+    const m = 10 ** dp;
+    return (Math.round(n * m) / m).toLocaleString('en-GB', { maximumFractionDigits: dp });
+  };
+  const quarter = (x) => {
+    const q = Math.round(x * 4) / 4;
+    if (q <= 0) return '<¼';
+    const whole = Math.floor(q);
+    const frac = { 0: '', 0.25: '¼', 0.5: '½', 0.75: '¾' }[q - whole];
+    return (whole ? String(whole) : '') + frac;
+  };
+  const tsp = (t) => {
+    const q = Math.round(t * 8) / 8;
+    if (q <= 0) return 'a pinch';
+    const whole = Math.floor(q);
+    const eighths = Math.round((q - whole) * 8);
+    const map = ['', '⅛', '¼', '⅜', '½', '⅝', '¾', '⅞'];
+    return (whole ? whole + (eighths ? ' ' : '') : '') + map[eighths];
+  };
+
+  // ── State & rendering ────────────────────────────────────────────────
+  const input = document.getElementById('servings');
+  const list = document.getElementById('list');
+  const total = document.getElementById('total');
+  const checked = new Set();
+
+  function readServings() {
+    const v = parseFloat(input.value);
+    return Number.isFinite(v) && v > 0 ? Math.min(v, MAX_SERVINGS) : null;
+  }
+
+  function render() {
+    const servings = readServings();
+    const ok = servings !== null;
+    const f = (ok ? servings : RECIPE.serves) / RECIPE.serves;
+    const dash = '—';
+
+    const flour = RECIPE.flour * f;
+    const bp = RECIPE.bakingPowder * f;
+    const salt = flour * RECIPE.saltPer100gFlour / 100;
+    const butter = RECIPE.butter * f;
+    const eggs = RECIPE.eggs * f;
+    const milk = RECIPE.milk * f;
+
+    const rows = [
+      { id: 'flour',  name: 'Plain flour',    amount: ok ? fmt(flour) : dash, unit: 'g' },
+      { id: 'bp',     name: 'Baking powder',  amount: ok ? fmt(bp, 1) : dash, unit: 'g',
+        sub: ok && `About ${tsp(bp / BP_GRAMS_PER_TSP)} tsp` },
+      { id: 'salt',   name: 'Salt',           amount: ok ? fmt(salt, 1) : dash, unit: 'g',
+        sub: ok && `About ${tsp(salt / SALT_GRAMS_PER_TSP)} tsp fine salt` },
+      { id: 'butter', name: 'Butter, melted', amount: ok ? fmt(butter) : dash, unit: 'g' },
+      { id: 'egg',    name: Math.round(eggs * 4) / 4 <= 1 ? 'Large egg' : 'Large eggs',
+        amount: ok ? quarter(eggs) : dash, unit: '',
+        sub: ok && `About ${fmt(EGG_GRAMS * eggs)} g beaten` },
+      { id: 'milk',   name: 'Milk',           amount: ok ? fmt(milk) : dash, unit: 'ml' },
+    ];
+
+    list.innerHTML = '';
+    for (const r of rows) {
+      const label = document.createElement('label');
+      label.className = 'row';
+      label.htmlFor = `ing-${r.id}`;
+      label.innerHTML = `
+        <input type="checkbox" id="ing-${r.id}" ${checked.has(r.id) ? 'checked' : ''}>
+        <span class="text">
+          <span class="name"></span>
+          ${r.sub ? '<span class="sub"></span>' : ''}
+        </span>
+        <span class="amt"><span class="num"></span><span class="unit"></span></span>`;
+      label.querySelector('.name').textContent = r.name;
+      if (r.sub) label.querySelector('.sub').textContent = r.sub;
+      label.querySelector('.num').textContent = r.amount;
+      label.querySelector('.unit').textContent = r.unit;
+      label.querySelector('input').addEventListener('change', (e) => {
+        e.target.checked ? checked.add(r.id) : checked.delete(r.id);
+      });
+      list.appendChild(label);
+    }
+
+    const grams = flour + bp + salt + butter + EGG_GRAMS * eggs + milk;
+    total.textContent = ok ? `Yields about ${fmt(grams)} g of batter` : 'Enter at least 1 serving';
+  }
+
+  function step(delta) {
+    const current = readServings() ?? RECIPE.serves;
+    input.value = Math.max(1, Math.round(current) + delta);
+    render();
+  }
+
+  document.getElementById('minus').addEventListener('click', () => step(-1));
+  document.getElementById('plus').addEventListener('click', () => step(1));
+  input.addEventListener('input', render);
+
+  render();
+</script>
+</body>
+</html>
