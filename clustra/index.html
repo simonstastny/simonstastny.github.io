@@ -225,6 +225,15 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 4px;font:inherit;
 <script>
 const KEY = 'clustra-v1';
 // A group colour for text and thin lines: the pastel mixed towards the text colour, so it stays readable.
+// A group stores the NUMBER of its colour in the palette, not the colour itself.
+const cssColor = g => PALETTE[g?.color] ?? '#888';
+const colorIndex = v => { // a valid number is kept; anything else (e.g. a hex string) becomes the nearest palette colour
+  if (Number.isInteger(v) && v >= 0 && v < PALETTE.length) return v;
+  const rgb = h => [1, 3, 5].map(i => parseInt(String(h).slice(i, i + 2), 16));
+  const t = rgb(v); if (!/^#[0-9a-f]{6}$/i.test(String(v))) return 0;
+  let best = 0, bd = Infinity; PALETTE.forEach((p, i) => { const d = rgb(p).reduce((s, c, k) => s + (c - t[k]) ** 2, 0); if (d < bd) { bd = d; best = i; } });
+  return best;
+};
 const ink = c => `color-mix(in srgb, ${c} 45%, var(--text))`;
 const PALETTE = ['#F4A7A7','#F7BE95','#F5D88E','#BBDDA5','#91D4BB','#91D9E5','#A5C7F5','#B9B1F0','#E5A8D1','#B9BFC9'];
 const NH = 30;
@@ -246,6 +255,7 @@ function normalize(d) {
     savedAt: +d.savedAt || 0,
   };
   const gids = new Set(S.groups.map(g => g.id));
+  S.groups.forEach(g => { g.color = colorIndex(g.color); });
   S.groups.forEach(g => { g.parent = g.parent && g.parent !== g.id && gids.has(g.parent) ? g.parent : null; });
   S.groups.forEach(g => { const seen = new Set([g.id]); let x = g; while (x && x.parent) { if (seen.has(x.parent)) { x.parent = null; break; } seen.add(x.parent); x = S.groups.find(y => y.id === x.parent); } });
   S.items.forEach(p => { p.groups = (p.groups || []).filter(g => gids.has(g)); p.weak = (p.weak || []).filter(g => gids.has(g) && !p.groups.includes(g)); p.x = +p.x || 0; p.y = +p.y || 0; p.name = String(p.name || '?'); });
@@ -432,12 +442,12 @@ function renderCanvas() {
       else if (p.groups.includes(g.id)) arms.push([p, near]); // an item that is in via a subgroup is reached by that subgroup's arm only
     }
     const b = body;
-    areas.set(g.id, {hp, pad, color: g.color});
+    areas.set(g.id, {hp, pad, color: cssColor(g)});
     areaSize.set(g.id, dilatedArea(hp, pad));
     const on = sel?.kind === 'group' && sel.id === g.id;
-    h += `<g class="hull${on ? ' sel' : ''}${query && g.name.toLowerCase().includes(query.toLowerCase()) ? ' hit' : ''}" data-gid="${g.id}" fill="${g.color}" stroke="${g.color}"><path style="stroke-width:${pad}" d="M${hp.map(p => p.join(' ')).join('L')}Z"/>` +
+    h += `<g class="hull${on ? ' sel' : ''}${query && g.name.toLowerCase().includes(query.toLowerCase()) ? ' hit' : ''}" data-gid="${g.id}" fill="${cssColor(g)}" stroke="${cssColor(g)}"><path style="stroke-width:${pad}" d="M${hp.map(p => p.join(' ')).join('L')}Z"/>` +
       arms.map(([p, c]) => { const w = nodeW(p); return `<line x1="${p.x}" y1="${p.y}" x2="${c.x}" y2="${c.y}" style="stroke-width:16;stroke-linecap:round"/><rect x="${p.x - w / 2}" y="${p.y - NH / 2}" width="${w}" height="${NH}" rx="${NH / 2}" style="stroke-width:18"/>`; }).join('') + `</g>`;
-    labels += `<text class="glabel${g.parent ? ' sub' : ''}" data-gid="${g.id}" x="${b.x0 - pad / 2 + 10}" y="${b.y0 - pad / 2 - 8}" style="fill:${ink(g.color)}">${esc(g.name)}</text>`;
+    labels += `<text class="glabel${g.parent ? ' sub' : ''}" data-gid="${g.id}" x="${b.x0 - pad / 2 + 10}" y="${b.y0 - pad / 2 - 8}" style="fill:${ink(cssColor(g))}">${esc(g.name)}</text>`;
   }
   h += labels;
   // weak memberships: dotted line from the item to the edge of the group's area
@@ -476,8 +486,8 @@ function renderCanvas() {
     const hit = q && matchesItem(p, q, mgs);
     const cls = `node${(sel?.kind === 'item' && sel.id === p.id) || multi.has(p.id) ? ' sel' : ''}${q ? (hit ? ' hit' : ' dim') : ''}`;
     h += `<g class="${cls}" data-iid="${p.id}" transform="translate(${p.x},${p.y})"><rect x="${-w / 2}" y="${-NH / 2}" width="${w}" height="${NH}" rx="${NH / 2}"/>`;
-    p.groups.forEach((gid, i) => { h += `<circle cx="${-w / 2 + 14 + i * 10}" cy="0" r="4" fill="${gm.get(gid)?.color || '#888'}"/>`; });
-    p.weak.forEach((gid, i) => { h += `<circle cx="${-w / 2 + 14 + (p.groups.length + i) * 10}" cy="0" r="3.2" fill="none" stroke-width="1.6" stroke="${gm.get(gid)?.color || '#888'}"/>`; });
+    p.groups.forEach((gid, i) => { h += `<circle cx="${-w / 2 + 14 + i * 10}" cy="0" r="4" fill="${cssColor(gm.get(gid))}"/>`; });
+    p.weak.forEach((gid, i) => { h += `<circle cx="${-w / 2 + 14 + (p.groups.length + i) * 10}" cy="0" r="3.2" fill="none" stroke-width="1.6" stroke="${cssColor(gm.get(gid))}"/>`; });
     h += `<text x="${n * 5 + (n ? 2 : 0)}" text-anchor="middle" dy=".35em">${esc(p.name)}</text><circle class="handle" cx="${w / 2}" cy="0" r="7"/></g>`;
   }
   root.innerHTML = h;
@@ -491,11 +501,11 @@ function renderSidebar() {
   const q = query.toLowerCase(), mg = q ? matchingGroups() : [];
   const gs = orderedGroups().filter(g => !q || mg.includes(g));
   $('#glist').innerHTML = gs.map(g =>
-    `<li data-gid="${g.id}" style="padding-left:${8 + (q ? 0 : ancestors(g.id).length * 16)}px" class="${sel?.kind === 'group' && sel.id === g.id ? 'on' : ''}"><span class="dot" style="background:${g.color}"></span><span>${esc(g.name)}</span><span class="cnt">${members(g.id).length}</span></li>`).join('')
+    `<li data-gid="${g.id}" style="padding-left:${8 + (q ? 0 : ancestors(g.id).length * 16)}px" class="${sel?.kind === 'group' && sel.id === g.id ? 'on' : ''}"><span class="dot" style="background:${cssColor(g)}"></span><span>${esc(g.name)}</span><span class="cnt">${members(g.id).length}</span></li>`).join('')
     || (S.groups.length ? '<li class="none-msg" style="cursor:default">No group matches</li>' : '');
   const ps = S.items.filter(p => !q || matchesItem(p, q, mg)).sort(byName), gm = new Map(S.groups.map(g => [g.id, g]));
   $('#ilist').innerHTML = ps.map(p => {
-    const c = gm.get(p.groups[0])?.color;
+    const grp = gm.get(p.groups[0]), c = grp && cssColor(grp);
     return `<li data-iid="${p.id}" class="${(sel?.kind === 'item' && sel.id === p.id) || multi.has(p.id) ? 'on' : ''}"><span class="dot${c ? '' : ' none'}" style="${c ? `background:${c}` : ''}"></span><span>${esc(p.name)}</span></li>`;
   }).join('') || (S.items.length ? '<li class="none-msg" style="cursor:default">No item matches</li>' : '');
   $('#gcount').textContent = q ? `· ${gs.length} of ${S.groups.length}` : `· ${S.groups.length}`;
@@ -518,7 +528,7 @@ function renderInspector() {
     insp.hidden = false;
     insp.innerHTML = `<div class="title">${ps.length} items selected</div>
       <div class="lbl">Groups</div>
-      <div class="chips">${orderedGroups().map(g => { const n = ps.filter(p => inGroup(p, g.id)).length; return `<button class="chip${n === ps.length ? ' on' : n ? ' on implied' : ''}" data-act="multiGroup" data-gid="${g.id}" title="${n === ps.length ? 'All are in it — click to remove them all' : `${n} of ${ps.length} are in it — click to add the rest`}"><span class="dot" style="background:${g.color}"></span>${esc(fullName(g))}${n && n < ps.length ? ` · ${n}/${ps.length}` : ''}</button>`; }).join('') || '<span style="color:var(--muted)">No groups yet — create one on the left.</span>'}</div>
+      <div class="chips">${orderedGroups().map(g => { const n = ps.filter(p => inGroup(p, g.id)).length; return `<button class="chip${n === ps.length ? ' on' : n ? ' on implied' : ''}" data-act="multiGroup" data-gid="${g.id}" title="${n === ps.length ? 'All are in it — click to remove them all' : `${n} of ${ps.length} are in it — click to add the rest`}"><span class="dot" style="background:${cssColor(g)}"></span>${esc(fullName(g))}${n && n < ps.length ? ` · ${n}/${ps.length}` : ''}</button>`; }).join('') || '<span style="color:var(--muted)">No groups yet — create one on the left.</span>'}</div>
       <div class="hint">Click a group to add all selected items to it; click again to take them out. Drag any selected item to move the whole selection. Shift-click adds or removes items; drag on empty space to select a box (hold Shift to add to the selection).</div>
       <div class="lbl">Selected</div>
       <ul class="list">${ps.map(p => `<li><span class="grow"><a data-act="selItem" data-iid="${p.id}">${esc(p.name)}</a></span><button class="x" title="Remove from selection" data-act="multiDrop" data-iid="${p.id}">×</button></li>`).join('')}</ul>
@@ -539,7 +549,7 @@ function renderInspector() {
       <div class="lbl">Notes</div>
       <textarea data-field="note" placeholder="Anything worth remembering…">${esc(o.note || '')}</textarea>
       <div class="lbl">Groups</div>
-      <div class="chips"><button class="chip newgroup" data-act="newGroupPill" title="Create a new group and put ${esc(o.name)} in it">+ Group</button>${orderedGroups().map(g => `<button class="chip${o.groups.includes(g.id) ? ' on' : inGroup(o, g.id) ? ' on implied' : o.weak.includes(g.id) ? ' weak' : ''}" data-act="toggleGroup" data-gid="${g.id}" title="${o.weak.includes(g.id) ? 'Weak member — click to remove' : o.groups.includes(g.id) ? 'Member — click to make it a weak tie' : 'Click to add'}"><span class="dot" style="${o.weak.includes(g.id) ? `box-shadow:inset 0 0 0 2px ${g.color}` : `background:${g.color}`}"></span>${esc(fullName(g))}${o.weak.includes(g.id) ? ' · weak' : ''}</button>`).join('') }</div>
+      <div class="chips"><button class="chip newgroup" data-act="newGroupPill" title="Create a new group and put ${esc(o.name)} in it">+ Group</button>${orderedGroups().map(g => `<button class="chip${o.groups.includes(g.id) ? ' on' : inGroup(o, g.id) ? ' on implied' : o.weak.includes(g.id) ? ' weak' : ''}" data-act="toggleGroup" data-gid="${g.id}" title="${o.weak.includes(g.id) ? 'Weak member — click to remove' : o.groups.includes(g.id) ? 'Member — click to make it a weak tie' : 'Click to add'}"><span class="dot" style="${o.weak.includes(g.id) ? `box-shadow:inset 0 0 0 2px ${cssColor(g)}` : `background:${cssColor(g)}`}"></span>${esc(fullName(g))}${o.weak.includes(g.id) ? ' · weak' : ''}</button>`).join('') }</div>
       ${S.groups.length ? '<div class="hint">Click a group to cycle: member → weak tie → not in it. Dragging from the blue dot onto a group also makes a weak tie.</div>' : ''}
       <div class="foot"><span></span><button class="danger" data-act="delItem">Delete item</button></div>`;
   } else if (sel.kind === 'group') {
@@ -548,11 +558,11 @@ function renderInspector() {
     const weak = weakMembers(o.id), subs = S.groups.filter(g => g.parent === o.id), banned = [o.id, ...descendants(o.id)];
     h = `<input type="text" class="title" data-field="name" value="${esc(o.name)}" placeholder="Group name">
       <div class="lbl">Color</div>
-      <div class="swatches">${PALETTE.map(c => `<button data-act="setColor" data-color="${c}" class="${c === o.color ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div>
+      <div class="swatches">${PALETTE.map((c, i) => `<button data-act="setColor" data-color="${i}" class="${i === o.color ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div>
       <div class="lbl">Parent group</div>
       <select data-field="parent"><option value="">— none (top level) —</option>${orderedGroups().filter(g => !banned.includes(g.id)).map(g => `<option value="${g.id}"${g.id === o.parent ? ' selected' : ''}>${esc(fullName(g))}</option>`).join('')}</select>
       <div class="lbl">Subgroups</div>
-      <ul class="list">${subs.map(g => `<li><span class="dot" style="background:${g.color}"></span><span class="grow"><a data-act="selGroup" data-gid="${g.id}">${esc(g.name)}</a></span><span style="color:var(--muted)">${members(g.id).length}</span></li>`).join('')}</ul>
+      <ul class="list">${subs.map(g => `<li><span class="dot" style="background:${cssColor(g)}"></span><span class="grow"><a data-act="selGroup" data-gid="${g.id}">${esc(g.name)}</a></span><span style="color:var(--muted)">${members(g.id).length}</span></li>`).join('')}</ul>
       <input type="text" id="sub-add" placeholder="+ New subgroup, press Enter" data-enter="newSub">
       <div class="lbl">Add items</div>
       <input type="text" id="g-add" list="dl" placeholder="Type a name, press Enter" data-enter="addMember">
@@ -644,7 +654,7 @@ const acts = {
     mutate(() => {
       const g = existing || (() => {
         const used = new Set(S.groups.map(x => x.color));
-        const ng = {id: uid(), name, parent: null, color: PALETTE.find(c => !used.has(c)) || PALETTE[S.groups.length % PALETTE.length]};
+        const ng = {id: uid(), name, parent: null, color: PALETTE.findIndex((c, i) => !used.has(i)) >= 0 ? PALETTE.findIndex((c, i) => !used.has(i)) : S.groups.length % PALETTE.length};
         S.groups.push(ng); return ng;
       })();
       addToGroup(p, g.id);
@@ -683,7 +693,7 @@ const acts = {
     S.groups.forEach(g => { if (g.parent === id) g.parent = par; });
     S.items.forEach(p => { p.weak = p.weak.filter(g => g !== id); if (p.groups.includes(id)) { p.groups = p.groups.filter(g => g !== id); if (par && !inGroup(p, par)) p.groups.push(par); } });
   }); },
-  setColor: d => mutate(() => { getSel().color = d.color; }),
+  setColor: d => mutate(() => { getSel().color = +d.color; }),
   removeMember: d => mutate(() => removeFromGroup(item(d.iid), sel.id)),
   makeWeak: d => mutate(() => { const p = item(d.iid); p.groups = p.groups.filter(x => x !== sel.id); if (!p.weak.includes(sel.id)) p.weak.push(sel.id); }),
   makeStrong: d => mutate(() => addToGroup(item(d.iid), sel.id)),
@@ -1352,9 +1362,9 @@ $('#zoom').addEventListener('click', e => {
 
 // ---------- sample ----------
 $('#load-sample').addEventListener('click', () => {
-  const G = [['Frontend', 5], ['Backend', 3], ['Data', 6]].map(([name, c]) => ({id: uid(), name, color: PALETTE[c]}));
+  const G = [['Frontend', 5], ['Backend', 3], ['Data', 6]].map(([name, c]) => ({id: uid(), name, color: c}));
   const g = Object.fromEntries(G.map(x => [x.name, x.id]));
-  const pipes = {id: uid(), name: 'Pipelines', color: PALETTE[6], parent: g['Data']}; G.push(pipes);
+  const pipes = {id: uid(), name: 'Pipelines', color: 6, parent: g['Data']}; G.push(pipes);
   const spec = {
     'Web app': ['Frontend'], 'Mobile app': ['Frontend'], 'Design system': ['Frontend'],
     'API gateway': ['Backend'], 'Auth service': ['Backend'], 'Billing': ['Backend'], 'Notifications': ['Backend'],
