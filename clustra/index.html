@@ -23,7 +23,7 @@
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;overflow:hidden}
 body{background:var(--bg);color:var(--text);font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
-svg#cv{position:fixed;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none;touch-action:none;cursor:grab;
+svg#cv{position:fixed;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none;touch-action:none;cursor:default;
   background-image:radial-gradient(var(--dot) 1.2px,transparent 1.3px)}
 svg#cv.panning{cursor:grabbing}
 svg text{font:500 13px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;fill:var(--text);pointer-events:none}
@@ -126,8 +126,8 @@ label.chk input{width:auto;margin:0}
 .filerow{flex:1;min-width:0;display:flex;align-items:center;gap:9px;text-align:left;background:none;border:none;padding:3px 6px;margin:-3px 0 -3px -6px;border-radius:6px}
 .filerow:hover{background:var(--hover)}
 .fcol{display:flex;flex-direction:column;min-width:0;line-height:1.25}
-#fname{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#fstat{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#side .fname,#tools .fname{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#side .fstat{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .syncdot{flex:none;width:10px;height:10px;border-radius:50%;border:2px solid var(--muted)}
 .syncdot.ok{background:#30a46c;border-color:#30a46c}
 .syncdot.busy{background:#e2a400;border-color:#e2a400;animation:pulse 1s ease-in-out infinite}
@@ -143,6 +143,32 @@ label.chk input{width:auto;margin:0}
 #empty h2{margin:0 0 6px;font-size:16px}
 #empty p{color:var(--muted);margin:0 0 14px}
 kbd{border:1px solid var(--border);border-radius:4px;padding:0 4px;font:inherit;font-size:11px}
+.mobile-only,#tools .mobile-only{display:none}
+.sheetx{position:fixed;top:12px;right:12px;width:40px;height:40px;z-index:40;display:none;align-items:center;justify-content:center;padding:0;border-radius:50%;background:var(--hover);border:1px solid var(--border)}
+.iconbtn{width:34px;height:30px;padding:0;align-items:center;justify-content:center;border-color:transparent;background:none}
+#pop{z-index:45}
+#toast{z-index:60}
+/* Phones and other narrow screens */
+@media (max-width: 720px){
+  /* the logo goes to the bottom-left corner */
+  #brand{position:fixed;left:12px;bottom:12px}
+  /* the file row and the actions are one panel across the top; the summary is dropped */
+  #topright{left:12px;max-width:none}
+  #tools{flex:1;min-width:0;gap:2px;padding:4px}
+  #tools .mobile-only{display:flex}
+  #tools #filerow2{flex:1 1 90px;min-width:44px;margin:0;padding:4px 6px}
+  #tools button{white-space:nowrap;padding:6px 6px}
+  #tools .ico{font-size:16px}
+  /* the lists open as a sheet over the whole page */
+  #side{display:none}
+  #side.sheet{display:flex;left:0;top:0;right:0;bottom:0;width:auto;max-height:none;border-radius:0;border:none;padding:16px;z-index:25}
+  #side.sheet #sidetoggle{display:none}
+  #side.sheet .sidehead{padding-right:52px}
+  body.sheet-left #sheetclose,body.sheet-insp #inspclose{display:flex}
+  /* the selection panel too */
+  #insp:not([hidden]){left:0;top:0;right:0;bottom:0;width:auto;max-height:none;border-radius:0;border:none;padding:64px 16px 24px;z-index:25}
+}
+@media (max-width: 360px){ #tools .ico{display:none} }
 </style>
 </head>
 <body>
@@ -156,7 +182,7 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 4px;font:inherit;
 </svg>
 
 <div id="side" class="panel">
-  <div class="sidehead"><button id="filerow" class="filerow"><span id="syncdot" class="syncdot"></span><span class="fcol"><span id="fname"></span><span id="fstat"></span></span></button><button class="x" id="sidetoggle" title="Collapse the panel" aria-label="Collapse the panel"></button></div>
+  <div class="sidehead"><button id="filerow" class="filerow"><span class="syncdot"></span><span class="fcol"><span class="fname"></span><span class="fstat"></span></span></button><button class="x" id="sidetoggle" title="Collapse the panel" aria-label="Collapse the panel"></button></div>
   <input type="search" id="search" placeholder="Search…  ( / )">
   <div id="lists">
     <div class="lbl">Groups <span id="gcount"></span></div>
@@ -170,14 +196,18 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 4px;font:inherit;
 <div id="topright">
 <div id="brand" role="img" aria-label="Clustra"><img class="mark" alt="" width="37" height="37" src="data:image/webp;base64,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"><span class="word"></span></div>
 <div id="tools" class="panel">
+  <button id="filerow2" class="filerow mobile-only" aria-label="File options"><span class="syncdot"></span><span class="fcol"><span class="fname"></span></span></button>
   <button data-tool="item" title="Or double-click the canvas">+ Item</button>
   <button data-tool="align" title="Arrange the whole board — or only the selected items, or the selected group"><span class="ico">☷</span> Align</button>
   <button data-tool="undo" title="Cmd/Ctrl+Z"><span class="ico">⎌</span> Undo</button>
   <input type="file" id="file" accept="application/json,.json" hidden>
+  <button id="sheetopen" class="mobile-only iconbtn" aria-label="Open the list of groups and items" title="Groups and items"></button>
 </div>
 </div>
 
 <div id="insp" class="panel" hidden></div>
+<button id="sheetclose" class="sheetx" aria-label="Close" title="Close"></button>
+<button id="inspclose" class="sheetx" aria-label="Close" title="Close"></button>
 
 <div id="zoom" class="panel">
   <button data-zoom="out">−</button><button data-zoom="reset" id="zpct">100%</button><button data-zoom="in">+</button><button data-zoom="fit">Fit</button>
@@ -360,7 +390,7 @@ function zoomAt(cx, cy, f) {
 function fit() {
   const W = innerWidth, H = innerHeight;
   if (!S.items.length) { S.view = {x: W / 2, y: H / 2, k: 1}; applyView(); return; }
-  const b = bbox(), L = 328, T = 80, R = sel ? 340 : 40, B = 70, pad = 50;
+  const ph = isMobile(), b = bbox(), L = ph ? 20 : 328, T = 70, R = ph ? 20 : sel ? 340 : 40, B = 70, pad = 50; // on a phone the panels are sheets, so the board gets the whole width
   const k = Math.min(1.4, (W - L - R) / (b.x1 - b.x0 + pad * 2), (H - T - B) / (b.y1 - b.y0 + pad * 2));
   const kk = Math.max(0.08, k);
   S.view = {k: kk, x: L + (W - L - R) / 2 - (b.x0 + b.x1) / 2 * kk, y: T + (H - T - B) / 2 - (b.y0 + b.y1) / 2 * kk};
@@ -368,7 +398,7 @@ function fit() {
 }
 function ensureVisible(p) {
   const s = toScreen(p.x, p.y);
-  if (s.x < 338 || s.x > innerWidth - 350 || s.y < 80 || s.y > innerHeight - 80) {
+  if (s.x < (isMobile() ? 20 : 338) || s.x > innerWidth - (isMobile() ? 20 : 350) || s.y < 70 || s.y > innerHeight - 80) {
     S.view.x += innerWidth / 2 - s.x; S.view.y += innerHeight / 2 - s.y; applyView(); saveSoon();
   }
 }
@@ -380,6 +410,7 @@ function renderCanvas() {
   let h = '', labels = '';
   const selItemId = sel?.kind === 'item' ? sel.id : null;
   const areas = new Map();
+  areaSize = new Map();
   // group hulls
   for (const g of orderedGroups()) {
     const ms = members(g.id); if (!ms.length) continue;
@@ -400,6 +431,7 @@ function renderCanvas() {
     }
     const b = body;
     areas.set(g.id, {hp, pad, color: g.color});
+    areaSize.set(g.id, dilatedArea(hp, pad));
     const on = sel?.kind === 'group' && sel.id === g.id;
     h += `<g class="hull${on ? ' sel' : ''}${query && g.name.toLowerCase().includes(query.toLowerCase()) ? ' hit' : ''}" data-gid="${g.id}" fill="${g.color}" stroke="${g.color}"><path style="stroke-width:${pad}" d="M${hp.map(p => p.join(' ')).join('L')}Z"/>` +
       arms.map(([p, c]) => { const w = nodeW(p); return `<line x1="${p.x}" y1="${p.y}" x2="${c.x}" y2="${c.y}" style="stroke-width:16;stroke-linecap:round"/><rect x="${p.x - w / 2}" y="${p.y - NH / 2}" width="${w}" height="${NH}" rx="${NH / 2}" style="stroke-width:18"/>`; }).join('') + `</g>`;
@@ -476,21 +508,22 @@ function linkPhrase(l, me) {
 }
 const typeOptions = (sel, extra = '') => S.linkTypes.map(t => `<option value="${t.id}"${t.id === sel ? ' selected' : ''}>${esc(t.name)}${t.dir ? ' →' : ''}</option>`).join('') + `<option value="__new"${sel === '__new' ? ' selected' : ''}>+ New type…</option>`;
 function renderInspector() {
-  const o = getSel();
+  const o = getSel(), canShow = !isMobile() || inspOpen;
+  if (!o && multi.size < 2) inspOpen = false;
+  if (!canShow || (!o && multi.size < 2)) { insp.hidden = true; syncSheets(); return; }
   if (multi.size > 1) {
     const ps = [...multi].map(item);
     insp.hidden = false;
     insp.innerHTML = `<div class="title">${ps.length} items selected</div>
       <div class="lbl">Groups</div>
       <div class="chips">${orderedGroups().map(g => { const n = ps.filter(p => inGroup(p, g.id)).length; return `<button class="chip${n === ps.length ? ' on' : n ? ' on implied' : ''}" data-act="multiGroup" data-gid="${g.id}" title="${n === ps.length ? 'All are in it — click to remove them all' : `${n} of ${ps.length} are in it — click to add the rest`}"><span class="dot" style="background:${g.color}"></span>${esc(fullName(g))}${n && n < ps.length ? ` · ${n}/${ps.length}` : ''}</button>`; }).join('') || '<span style="color:var(--muted)">No groups yet — create one on the left.</span>'}</div>
-      <div class="hint">Click a group to add all selected items to it; click again to take them out. Drag any selected item to move the whole selection. Shift-click adds or removes items; shift-drag on empty space selects a box.</div>
+      <div class="hint">Click a group to add all selected items to it; click again to take them out. Drag any selected item to move the whole selection. Shift-click adds or removes items; drag on empty space to select a box (hold Shift to add to the selection).</div>
       <div class="lbl">Selected</div>
       <ul class="list">${ps.map(p => `<li><span class="grow"><a data-act="selItem" data-iid="${p.id}">${esc(p.name)}</a></span><button class="x" title="Remove from selection" data-act="multiDrop" data-iid="${p.id}">×</button></li>`).join('')}</ul>
       <div class="foot"><button data-act="multiClear">Clear selection</button><button class="danger" data-act="multiDelete">Delete ${ps.length} items</button></div>`;
-    return;
+    syncSheets(); return;
   }
-  insp.hidden = !o;
-  if (!o) return;
+  insp.hidden = false;
   let h = '';
   if (sel.kind === 'item') {
     const ls = S.links.filter(l => l.a === o.id || l.b === o.id);
@@ -539,7 +572,7 @@ function renderInspector() {
       <input type="text" id="l-label" data-field="label" value="${esc(o.label || '')}" placeholder="e.g. since 2019, weekly, strong">
       <div class="foot">${t?.dir ? '<button data-act="swap">Swap direction</button>' : '<span></span>'}<button class="danger" data-act="delSelLink">Delete connection</button></div>`;
   }
-  insp.innerHTML = h;
+  insp.innerHTML = h; syncSheets();
 }
 function setDatalist(ps) { $('#dl').innerHTML = ps.map(p => `<option value="${esc(p.name)}">`).join(''); }
 function renderAll() { renderCanvas(); renderSidebar(); renderInspector(); }
@@ -697,15 +730,30 @@ insp.addEventListener('keydown', e => { if (e.key === 'Escape' && e.target.id ==
 
 // Left panel: can be collapsed to just the title and the summary. Pressing "/" opens it for as long as
 // the search lasts (until Escape) and then it folds back.
+// On phones the left panel is a sheet instead (closed until opened) and the selection panel opens on double click.
+const narrow = matchMedia('(max-width: 720px)');
+const isMobile = () => narrow.matches;
+let sheetOpen = false, inspOpen = false;
+const X_ICON = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 4l10 10M14 4 4 14"/></svg>';
+$('#sheetclose').innerHTML = X_ICON; $('#inspclose').innerHTML = X_ICON;
+$('#sheetopen').innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5 9 12l5.5-5.5"/></svg>';
 let sideCollapsed = false, sideTemp = false;
 try { sideCollapsed = localStorage.getItem(KEY + '-side') === '1'; } catch {}
+function syncSheets() { document.body.classList.toggle('sheet-left', isMobile() && sheetOpen); document.body.classList.toggle('sheet-insp', isMobile() && !insp.hidden); }
 function applySide() {
+  $('#side').classList.toggle('sheet', isMobile() && sheetOpen); syncSheets();
+  if (isMobile()) { $('#side').classList.remove('collapsed'); return; }
   const folded = sideCollapsed && !sideTemp;
   $('#side').classList.toggle('collapsed', folded);
   $('#sidetoggle').innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="${folded ? 'M6.5 3.5 12 9l-5.5 5.5' : 'M3.5 6.5 9 12l5.5-5.5'}"/></svg>`;
   const tip = folded ? 'Expand the panel' : 'Collapse the panel';
   $('#sidetoggle').title = tip; $('#sidetoggle').setAttribute('aria-label', tip);
 }
+$('#sheetopen').addEventListener('click', () => { sheetOpen = true; applySide(); });
+$('#sheetclose').addEventListener('click', () => { sheetOpen = false; applySide(); });
+$('#inspclose').addEventListener('click', () => { inspOpen = false; renderInspector(); }); // closes the sheet, keeps the selection
+narrow.addEventListener('change', () => { sheetOpen = false; inspOpen = false; applySide(); renderInspector(); });
+function openInsp() { inspOpen = true; renderInspector(); }
 $('#sidetoggle').addEventListener('click', () => {
   if (sideTemp) { sideTemp = false; sideCollapsed = true; } // folding while the search had it open: fold for good
   else sideCollapsed = !sideCollapsed;
@@ -713,11 +761,12 @@ $('#sidetoggle').addEventListener('click', () => {
   applySide();
 });
 function focusGroup(gid) { const c = coreMembers(gid); if (c.length) ensureVisible(centroid(c)); }
-$('#glist').addEventListener('click', e => { const li = e.target.closest('li[data-gid]'); if (!li) return; select('group', li.dataset.gid); focusGroup(li.dataset.gid); $('#g-add')?.focus(); });
+$('#glist').addEventListener('click', e => { const li = e.target.closest('li[data-gid]'); if (!li) return; select('group', li.dataset.gid); focusGroup(li.dataset.gid); if (isMobile()) { sheetOpen = false; applySide(); } else $('#g-add')?.focus(); });
 $('#ilist').addEventListener('click', e => {
   const li = e.target.closest('li[data-iid]'); if (!li) return;
   if (e.shiftKey) toggleMulti(li.dataset.iid); else select('item', li.dataset.iid);
   const p = item(li.dataset.iid); if (p) ensureVisible(p);
+  if (isMobile() && !e.shiftKey) { sheetOpen = false; applySide(); }
 });
 $('#search').addEventListener('input', e => { query = e.target.value.trim(); renderCanvas(); renderSidebar(); });
 $('#search').addEventListener('keydown', e => {
@@ -774,19 +823,42 @@ pop.addEventListener('keydown', e => {
 });
 
 // ---------- pointer interaction ----------
+// Area of a group's drawn shape: the polygon grown by half the outline width on every side.
+let areaSize = new Map();
+function dilatedArea(poly, pad) {
+  let a = 0, per = 0;
+  for (let i = 0; i < poly.length; i++) { const p = poly[i], q = poly[(i + 1) % poly.length]; a += p[0] * q[1] - q[0] * p[1]; per += Math.hypot(q[0] - p[0], q[1] - p[1]); }
+  return Math.abs(a) / 2 + per * pad / 2 + Math.PI * (pad / 2) ** 2;
+}
+// The group whose area is under a screen point; where areas overlap, the smallest one wins.
+function groupAt(cx, cy) {
+  let best = '', size = Infinity;
+  for (const el of document.elementsFromPoint(cx, cy)) {
+    const gid = el.closest?.('.hull')?.dataset.gid, a = gid && areaSize.get(gid);
+    if (a !== undefined && a !== '' && a < size) { size = a; best = gid; }
+  }
+  return best;
+}
+// Dragging a box on the canvas selects the items it touches (never groups).
+function applyMarquee(d, x, y) {
+  const a = toWorld(Math.min(d.sx, x), Math.min(d.sy, y)), b = toWorld(Math.max(d.sx, x), Math.max(d.sy, y));
+  multi.clear(); d.base.forEach(id => multi.add(id));
+  for (const p of S.items) { const hw = nodeW(p) / 2, hh = NH / 2; if (p.x + hw >= a.x && p.x - hw <= b.x && p.y + hh >= a.y && p.y - hh <= b.y) multi.add(p.id); }
+}
 let drag = null, last = {t: 0, x: 0, y: 0, key: ''};
+svg.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); }); // no browser autoscroll on the middle button
 svg.addEventListener('pointerdown', e => {
-  if (e.button !== 0) return;
+  if (e.button !== 0 && e.button !== 1) return; // left: select, move items, draw a box. Middle: pan.
   pop.hidden = true; document.activeElement?.blur?.();
-  const t = e.target, n = t.closest('.node'), gl = t.closest('.glabel'), lk = t.closest('.link'), hl = t.closest('.hull');
+  const t = e.target, n = t.closest('.node'), gl = t.closest('.glabel'), lk = t.closest('.link');
   drag = {sx: e.clientX, sy: e.clientY, px: e.clientX, py: e.clientY, moved: false};
+  if (e.button === 1) { drag.kind = 'pan'; drag.id = ''; svg.classList.add('panning'); e.preventDefault(); return; }
   if (n && t.closest('.handle')) { drag.kind = 'connect'; drag.id = n.dataset.iid; }
   else if (n && e.shiftKey) { drag.kind = 'item'; drag.id = n.dataset.iid; drag.shift = true; toggleMulti(drag.id); }
   else if (n) { drag.kind = 'item'; drag.id = n.dataset.iid; if (!multi.has(drag.id) && !(sel?.kind === 'item' && sel.id === drag.id)) select('item', drag.id); }
   else if (gl) { drag.kind = 'group'; drag.id = gl.dataset.gid; }
   else if (lk) { drag.kind = 'link'; drag.id = lk.dataset.lid; }
-  else if (e.shiftKey) drag.kind = 'marquee';
-  else { drag.kind = 'pan'; drag.id = hl?.dataset.gid || ''; svg.classList.add('panning'); }
+  else { drag.kind = 'marquee'; drag.id = groupAt(e.clientX, e.clientY); drag.shift = e.shiftKey; } // empty canvas or a group's area
   e.preventDefault();
 });
 window.addEventListener('pointermove', e => {
@@ -798,6 +870,10 @@ window.addEventListener('pointermove', e => {
     if (drag.kind === 'item' || drag.kind === 'group') pushUndo();
     if (drag.kind === 'group') drag.ms = coreMembers(drag.id);
     if (drag.kind === 'item') drag.ms = multi.has(drag.id) ? [...multi].map(item) : drag.shift ? [] : [item(drag.id)];
+    if (drag.kind === 'marquee') { // a plain box replaces the selection, with Shift it adds to it
+      drag.base = new Set(drag.shift ? (multi.size ? multi : sel?.kind === 'item' ? [sel.id] : []) : []);
+      sel = null; multi.clear(); renderAll();
+    }
   }
   drag.px = e.clientX; drag.py = e.clientY;
   const k = S.view.k;
@@ -806,6 +882,7 @@ window.addEventListener('pointermove', e => {
     const m = $('#marq'); m.hidden = false;
     m.style.left = Math.min(drag.sx, e.clientX) + 'px'; m.style.top = Math.min(drag.sy, e.clientY) + 'px';
     m.style.width = Math.abs(e.clientX - drag.sx) + 'px'; m.style.height = Math.abs(e.clientY - drag.sy) + 'px';
+    applyMarquee(drag, e.clientX, e.clientY); renderCanvas(); // the items inside light up while you drag
   }
   else if (drag.kind === 'item' || drag.kind === 'group') { drag.ms.forEach(p => { p.x += dx / k; p.y += dy / k; }); renderCanvas(); }
   else if (drag.kind === 'connect') {
@@ -816,12 +893,7 @@ window.addEventListener('pointermove', e => {
 window.addEventListener('pointerup', e => {
   if (!drag) return;
   const d = drag; drag = null; svg.classList.remove('panning'); temp.setAttribute('visibility', 'hidden'); $('#marq').hidden = true;
-  if (d.moved && d.kind === 'marquee') { // add every item inside the box to the selection
-    const a = toWorld(Math.min(d.sx, e.clientX), Math.min(d.sy, e.clientY)), b = toWorld(Math.max(d.sx, e.clientX), Math.max(d.sy, e.clientY));
-    if (!multi.size && sel?.kind === 'item') multi.add(sel.id);
-    for (const p of S.items) if (p.x > a.x && p.x < b.x && p.y > a.y && p.y < b.y) multi.add(p.id);
-    return settleMulti();
-  }
+  if (d.moved && d.kind === 'marquee') { applyMarquee(d, e.clientX, e.clientY); return settleMulti(); }
   if (d.moved) {
     if (d.kind === 'connect') {
       const el = document.elementFromPoint(e.clientX, e.clientY), target = el?.closest?.('.node')?.dataset.iid;
@@ -833,26 +905,41 @@ window.addEventListener('pointerup', e => {
   const key = d.kind + d.id, now = performance.now();
   const dbl = now - last.t < 380 && last.key === key && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 8;
   last = {t: dbl ? 0 : now, x: e.clientX, y: e.clientY, key};
-  if (d.kind === 'pan') { if (dbl) nameInput(e.clientX, e.clientY, d.id); else if (sel || multi.size) select(null); }
-  else if (d.kind === 'marquee') { /* shift-click on empty space: keep the selection */ }
-  else if (d.kind === 'item') { if (!d.shift && multi.size) select('item', d.id); else if (dbl && !d.shift) { const i = insp.querySelector('[data-field=name]'); i?.focus(); i?.select(); } }
-  else if (d.kind === 'group') { select('group', d.id); if (dbl) $('#g-add')?.focus(); }
-  else if (d.kind === 'link') select('link', d.id);
+  const phone = isMobile();
+  if (d.kind === 'pan') { /* a middle click only */ }
+  else if (d.kind === 'marquee') {
+    if (dbl && phone && d.id) { select('group', d.id); openInsp(); }   // phone: double-tap a group's area opens its panel
+    else if (dbl) nameInput(e.clientX, e.clientY, d.id);     // double-click: a new item, in the group under the pointer
+    else if (d.shift) { /* shift-click on empty space keeps the selection */ }
+    else if (d.id) select('group', d.id);               // a click inside a group's area selects the smallest group there
+    else if (sel || multi.size) select(null);
+  }
+  else if (d.kind === 'item') {
+    if (phone && multi.size > 1 && multi.has(d.id)) { if (dbl) openInsp(); }   // phone: double-tap a selected item opens the panel for the whole selection
+    else if (!d.shift && multi.size) { select('item', d.id); if (dbl && phone) openInsp(); }
+    else if (dbl && !d.shift) { if (phone) openInsp(); else { const i = insp.querySelector('[data-field=name]'); i?.focus(); i?.select(); } }
+  }
+  else if (d.kind === 'group') { select('group', d.id); if (dbl) { if (phone) openInsp(); else $('#g-add')?.focus(); } }
+  else if (d.kind === 'link') { select('link', d.id); if (dbl && phone) openInsp(); }
 });
 svg.addEventListener('wheel', e => {
   e.preventDefault();
-  const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
-  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
-  else if (mouseWheel) zoomAt(e.clientX, e.clientY, Math.exp(-Math.sign(e.deltaY) * 0.15));
-  else { S.view.x -= e.deltaX; S.view.y -= e.deltaY; applyView(); saveSoon(); }
+  // Zoom only with Command (or Ctrl, which is also what a trackpad pinch sends); a plain wheel or two-finger scroll pans.
+  if (e.metaKey || e.ctrlKey) {
+    const mouseWheel = e.deltaMode !== 0 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY)); // a wheel notch: one fixed step
+    zoomAt(e.clientX, e.clientY, mouseWheel ? Math.exp(-Math.sign(e.deltaY) * 0.15) : Math.exp(-e.deltaY * 0.01));
+  } else {
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1;
+    S.view.x -= e.deltaX * unit; S.view.y -= e.deltaY * unit; applyView(); saveSoon();
+  }
 }, {passive: false});
 window.addEventListener('keydown', e => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); doUndo(); return; }
   if (typing) { if (e.key === 'Escape') document.activeElement.blur(); return; }
-  if (e.key === 'Escape') { pop.hidden = true; if (sel || multi.size) select(null); }
+  if (e.key === 'Escape') { pop.hidden = true; if (isMobile() && (sheetOpen || inspOpen)) { sheetOpen = inspOpen = false; applySide(); renderInspector(); } else if (sel || multi.size) select(null); }
   else if ((e.key === 'Delete' || e.key === 'Backspace') && multi.size > 1) acts.multiDelete();
-  else if (e.key === '/') { e.preventDefault(); if (sideCollapsed && !sideTemp) { sideTemp = true; applySide(); } $('#search').focus(); }
+  else if (e.key === '/') { e.preventDefault(); if (isMobile()) { sheetOpen = true; applySide(); } else if (sideCollapsed && !sideTemp) { sideTemp = true; applySide(); } $('#search').focus(); }
   else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
     if (sel.kind === 'item') acts.delItem(); else if (sel.kind === 'link') acts.delSelLink();
   }
@@ -1092,11 +1179,12 @@ function renderFileBtn() {
   else if (!fileOK) { name = fileHandle.name; stat = sync.state === 'error' ? 'Could not save — click to reconnect' : 'Click to reconnect'; cls = 'bad'; }
   else if (sync.state === 'saving') { name = fileHandle.name; stat = 'Saving…'; cls = 'busy'; }
   else { name = fileHandle.name; stat = sync.at ? 'Saved ' + new Date(sync.at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'}) : 'In sync'; cls = 'ok'; }
-  $('#fname').textContent = name; $('#fstat').textContent = stat; $('#syncdot').className = 'syncdot ' + cls;
+  document.querySelectorAll('.fname').forEach(el => el.textContent = name); document.querySelectorAll('.fstat').forEach(el => el.textContent = stat); document.querySelectorAll('.syncdot').forEach(el => el.className = 'syncdot ' + cls);
   $('#filerow').title = fileHandle ? (fileOK ? 'Every change is saved to this file. Click for file options.' : 'Click to allow saving to this file again.') : 'File options: autosave to a file, export, import, new board';
   document.title = tabTitle();
 }
 $('#filerow').addEventListener('click', () => fileMenu($('#filerow')));
+$('#filerow2').addEventListener('click', () => fileMenu($('#filerow2')));
 async function writeFile() {
   if (!fileHandle || !fileOK) return;
   if (writing) { dirty = true; return; }
