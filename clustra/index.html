@@ -29,16 +29,26 @@ svg#cv.panning{cursor:grabbing}
 svg text{font:500 13px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;fill:var(--text);pointer-events:none}
 .hull{opacity:.45;stroke-linejoin:round;stroke-width:48} /* the palette is pastel, so the areas can be fairly opaque */
 .hull.sel{opacity:.75}
-svg text.glabel{font-weight:700;font-size:15px;pointer-events:auto;cursor:move}
-svg text.glabel.sub{font-size:12px}
+svg g.glabel{cursor:move;pointer-events:auto}
+svg g.glabel text{font-weight:700;font-size:15px;pointer-events:none}
+svg g.glabel.sub text{font-size:12px}
+svg g.glabel rect{fill:transparent;pointer-events:all}
+svg .hull.sel{cursor:move}
 .chip.implied{border-style:dashed;font-weight:400}
 .chip.newgroup{border-style:dashed;color:var(--accent);font-weight:600}
 .chip.newgroup:hover{background:var(--hover)}
 .chip input{border:none;background:none;padding:0;width:130px;outline:none;font:inherit}
-.chip.weak{border-style:dotted;border-width:2px;color:var(--text)}
-.weakline{pointer-events:none}
-.weakline path{fill:none;stroke-width:3;stroke-dasharray:1 8;stroke-linecap:round}
-.weakline.dim{opacity:.25}
+.ghandle{fill:var(--accent);stroke:var(--node);stroke-width:2;cursor:crosshair}
+.lp{flex:none}
+.joint{fill:var(--bg);stroke:var(--accent);stroke-width:2.5;cursor:move}
+.pickrow{display:flex;gap:8px}
+.pick{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;cursor:pointer;min-width:0}
+.pick:hover{border-color:var(--muted)}
+.pick::after{content:'';border:4px solid transparent;border-top-color:var(--muted);border-bottom:0;margin-left:2px}
+.endlbl{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.endlbl span.nm{max-width:38%;overflow:hidden;text-overflow:ellipsis}
+.endlbl span.fill{flex:1;border-top:1px dashed var(--border);min-width:8px}
+#pop button.opt{justify-content:center}
 .hint{color:var(--muted);font-size:11px;margin-top:6px}
 .node{cursor:pointer}
 .node rect{fill:var(--node);stroke:var(--node-stroke);stroke-width:1.2}
@@ -111,6 +121,10 @@ button.x:hover{color:var(--danger)}
 .list a{color:inherit;text-decoration:none;cursor:pointer;font-weight:600}
 .list a:hover{color:var(--accent)}
 .row{display:flex;gap:6px;margin-top:6px}
+.seg{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.seg button{flex:1;border:none;background:var(--bg);padding:5px 6px;cursor:pointer;font-size:12px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button.on{background:var(--accent);color:#fff}
 .swatches{display:flex;gap:6px;flex-wrap:wrap}
 .swatches button{width:22px;height:22px;border-radius:50%;padding:0;border:2px solid transparent}
 .swatches button.on{border-color:var(--text)}
@@ -137,11 +151,26 @@ label.chk.wrap input{margin-top:2px}
 #pop button{border:none;text-align:left;display:flex;align-items:center;gap:8px}
 #nameinp{position:fixed;width:180px;z-index:6;transform:translate(-50%,-50%);background:var(--panel)!important;box-shadow:var(--shadow)}
 #marq{position:fixed;border:1.5px dashed var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);pointer-events:none;z-index:4}
+#exp{left:50%;top:50%;transform:translate(-50%,-50%);width:min(360px,calc(100% - 24px));padding:16px;z-index:50}
+#exp .prev{margin:10px 0 4px;height:170px;border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  background:conic-gradient(var(--hover) 25%,transparent 0 50%,var(--hover) 0 75%,transparent 0) 0 0/16px 16px}
+#exp .prev img{max-width:100%;max-height:100%;display:block}
+#exp .go{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+#exphint{left:50%;top:14px;transform:translateX(-50%);padding:8px 8px 8px 14px;display:flex;align-items:center;gap:12px;z-index:55}
+body.exportsel svg#cv{cursor:crosshair}
+#printsheet{display:none}
+@media print{
+  body>*:not(#printsheet){display:none!important}
+  html,body{height:auto;overflow:visible;background:#fff!important}
+  #printsheet{display:block;position:fixed;inset:0}
+  #printsheet svg{display:block;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 #toast{left:50%;bottom:60px;transform:translateX(-50%);padding:8px 14px;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.show{opacity:1}
 #empty{left:50%;top:50%;transform:translate(-50%,-50%);padding:22px 26px;text-align:center;max-width:380px}
 #empty h2{margin:0 0 6px;font-size:16px}
 #empty p{color:var(--muted);margin:0 0 14px}
+#samples{display:flex;flex-direction:column;gap:6px}
 kbd{border:1px solid var(--border);border-radius:4px;padding:0 4px;font:inherit;font-size:11px}
 .mobile-only,#tools .mobile-only{display:none}
 .sheetx{position:fixed;top:12px;right:12px;width:40px;height:40px;z-index:40;display:none;align-items:center;justify-content:center;padding:0;border-radius:50%;background:var(--hover);border:1px solid var(--border)}
@@ -174,9 +203,11 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 4px;font:inherit;
 <body>
 <svg id="cv">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0L10 5L0 10z" style="fill:var(--link)"/>
-    </marker>
+    <marker id="m-arrow" viewBox="-22 -9 24 18" refX="0" refY="0" markerWidth="24" markerHeight="18" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M-13-5.5L0 0-13 5.5z" style="fill:var(--link);stroke:var(--link);stroke-width:1;stroke-linejoin:round"/></marker>
+    <marker id="m-hollow" viewBox="-22 -9 24 18" refX="0" refY="0" markerWidth="24" markerHeight="18" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M-13-5.5L0 0-13 5.5z" style="fill:var(--bg);stroke:var(--link);stroke-width:1.6;stroke-linejoin:round"/></marker>
+    <marker id="m-open" viewBox="-22 -9 24 18" refX="0" refY="0" markerWidth="24" markerHeight="18" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M-12-6L0 0-12 6" style="fill:none;stroke:var(--link);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"/></marker>
+    <marker id="m-diamond" viewBox="-22 -9 24 18" refX="0" refY="0" markerWidth="24" markerHeight="18" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M-20 0L-10-5.5 0 0-10 5.5z" style="fill:var(--link);stroke:var(--link);stroke-width:1;stroke-linejoin:round"/></marker>
+    <marker id="m-hollowdiamond" viewBox="-22 -9 24 18" refX="0" refY="0" markerWidth="24" markerHeight="18" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M-20 0L-10-5.5 0 0-10 5.5z" style="fill:var(--bg);stroke:var(--link);stroke-width:1.6;stroke-linejoin:round"/></marker>
   </defs>
   <g id="world"><g id="root"></g><line id="temp" visibility="hidden"/></g>
 </svg>
@@ -215,12 +246,16 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 4px;font:inherit;
 <div id="pop" class="panel" hidden></div>
 <div id="toast" class="panel"></div>
 <div id="marq" hidden></div>
+<div id="printsheet"></div>
+<div id="exp" class="panel" hidden></div>
+<div id="exphint" class="panel" hidden>Drag on the board to choose the area <button id="exphintx">Cancel</button></div>
 <div id="empty" class="panel" hidden>
   <h2>Start your graph</h2>
   <p>Double-click anywhere to add an item, then use the + Group pill in the right panel to put it in a new group. Drag from the blue dot on an item to another item to connect them.</p>
-  <button id="load-sample">Load sample data</button>
+  <p style="margin-bottom:8px">Or start from an example:</p>
+  <div id="samples"><button data-sample="org">Company org chart</button><button data-sample="prizes">Literature prizes</button><button data-sample="components">Component diagram</button><button data-sample="family">Family tree</button><button data-sample="solar">Solar system</button><button data-sample="transit">City transport</button></div>
 </div>
-<datalist id="dl"></datalist>
+<datalist id="dl"></datalist><datalist id="dl2"></datalist>
 
 <script>
 const KEY = 'clustra-v1';
@@ -250,20 +285,25 @@ function normalize(d) {
     items: Array.isArray(d.items) ? d.items : [],
     groups: Array.isArray(d.groups) ? d.groups : [],
     links: Array.isArray(d.links) ? d.links : [],
-    linkTypes: (Array.isArray(d.linkTypes) ? d.linkTypes : []).filter(t => t && t.id).map(t => ({id: String(t.id), name: String(t.name || 'Connection'), dir: !!t.dir})),
+    linkTypes: (Array.isArray(d.linkTypes) ? d.linkTypes : []).filter(t => t && t.id).map(t => ({id: String(t.id), name: String(t.name || 'Connection'), line: LINES.includes(t.line) ? t.line : 'solid', start: ENDS.includes(t.start) ? t.start : 'none', end: ENDS.includes(t.end) ? t.end : t.dir ? 'arrow' : 'none'})), // older files: dir -> an arrow at the end
     view: d.view && isFinite(d.view.k) ? d.view : null,
     savedAt: +d.savedAt || 0,
   };
   const gids = new Set(S.groups.map(g => g.id));
-  S.groups.forEach(g => { g.color = colorIndex(g.color); });
+  S.groups.forEach(g => { g.color = colorIndex(g.color); if (g.hull !== 'organic' && g.hull !== 'rect') delete g.hull; for (const k of ['lx', 'ly']) { if (isFinite(g[k]) && +g[k]) g[k] = +g[k]; else delete g[k]; } });
   S.groups.forEach(g => { g.parent = g.parent && g.parent !== g.id && gids.has(g.parent) ? g.parent : null; });
   S.groups.forEach(g => { const seen = new Set([g.id]); let x = g; while (x && x.parent) { if (seen.has(x.parent)) { x.parent = null; break; } seen.add(x.parent); x = S.groups.find(y => y.id === x.parent); } });
-  S.items.forEach(p => { p.groups = (p.groups || []).filter(g => gids.has(g)); p.weak = (p.weak || []).filter(g => gids.has(g) && !p.groups.includes(g)); p.x = +p.x || 0; p.y = +p.y || 0; p.name = String(p.name || '?'); });
+  S.items.forEach(p => { p.groups = (p.groups || []).filter(g => gids.has(g)); delete p.weak; p.x = +p.x || 0; p.y = +p.y || 0; p.name = String(p.name || '?'); });
   const itemIds = new Set(S.items.map(p => p.id));
-  S.links = S.links.filter(l => itemIds.has(l.a) && itemIds.has(l.b) && l.a !== l.b);
+  const endIds = new Set([...itemIds, ...gids]); // a connection joins any two items and/or groups
+  S.links = S.links.filter(l => endIds.has(l.a) && endIds.has(l.b) && l.a !== l.b);
+  S.links.forEach(l => { // joints: points the line is bent through
+    const ok = Array.isArray(l.pts) ? l.pts.filter(q => Array.isArray(q) && isFinite(q[0]) && isFinite(q[1])).map(q => [+q[0], +q[1]]) : [];
+    if (ok.length) l.pts = ok; else delete l.pts;
+  });
   for (const l of S.links) {
     l.type = String(l.type);
-    if (!S.linkTypes.some(t => t.id === l.type)) S.linkTypes.push({id: l.type, name: 'Connection', dir: false}); // a link whose type is missing from the file
+    if (!S.linkTypes.some(t => t.id === l.type)) S.linkTypes.push({id: l.type, name: 'Connection', line: 'solid', start: 'none', end: 'none'}); // a link whose type is missing from the file
   }
   S.linkTypes = S.linkTypes.filter(t => S.links.some(l => l.type === t.id));
   return S;
@@ -275,12 +315,24 @@ const tabTitle = () => fileHandle ? 'Clustra - ' + fileHandle.name : 'Clustra'; 
 const graphTitle = () => S.name.trim() || fileStem() || 'Untitled graph'; // the name stored in the data, else the name of the linked file
 const slug = () => graphTitle().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'graph';
 // Connection types are named by the user and only exist while some connection uses them.
+const LINE_LABELS = {solid: 'Solid', dashed: 'Dashed', dotted: 'Dotted'}, LINES = Object.keys(LINE_LABELS);
+const END_LABELS = {none: 'Nothing', arrow: 'Full arrow', hollow: 'Hollow arrow', open: 'Open arrow (two sticks)', diamond: 'Full diamond', hollowdiamond: 'Hollow diamond'}, ENDS = Object.keys(END_LABELS);
 const typeOf = id => S.linkTypes.find(t => t.id === id);
 const typeName = id => typeOf(id)?.name || 'Connection';
-function ensureType(name, dir = false) {
+function ensureType(name) { // a new type starts as a plain line
   name = name.trim();
   const ex = S.linkTypes.find(t => t.name.toLowerCase() === name.toLowerCase()); if (ex) return ex;
-  const t = {id: uid(), name, dir: !!dir}; S.linkTypes.push(t); return t;
+  const t = {id: uid(), name, line: 'solid', start: 'none', end: 'none'}; S.linkTypes.push(t); return t;
+}
+const dirOf = t => !t ? '' : t.end !== 'none' && t.start === 'none' ? 'ab' : t.start !== 'none' && t.end === 'none' ? 'ba' : ''; // which way an arrow-like marker points, if only one end has one
+const mk = (k, side) => k && k !== 'none' ? ` marker-${side}="url(#m-${k})"` : '';
+const DASH = {dashed: '9 6', dotted: '0.1 6'};
+// Pictures of the options, shown instead of words in the style pickers
+const endIcon = (kind, side) => linePreview(side === 'start' ? {start: kind} : {end: kind});
+const lineIcon = k => linePreview({line: k});
+function linePreview(t) { // a small picture of how a connection type is drawn
+  const dash = {dashed: '7 4', dotted: '0.1 4.5'}[t?.line];
+  return `<svg class="lp" width="44" height="14" viewBox="0 0 44 14"><line x1="4" y1="7" x2="40" y2="7" stroke="var(--link)" stroke-width="1.8" stroke-linecap="round"${dash ? ` stroke-dasharray="${dash}"` : ''}${mk(t?.start, 'start')}${mk(t?.end, 'end')}/></svg>`;
 }
 function load() { try { return normalize(JSON.parse(localStorage.getItem(KEY))); } catch { return normalize(null); } }
 let S = load();
@@ -308,9 +360,6 @@ function ancestors(gid) { const a = []; let g = group(gid), n = 0; while (g && g
 function descendants(gid) { const out = []; const walk = id => S.groups.forEach(g => { if (g.parent === id && !out.includes(g.id)) { out.push(g.id); walk(g.id); } }); walk(gid); return out; }
 const inGroup = (p, gid) => p.groups.includes(gid) || p.groups.some(x => ancestors(x).includes(gid));
 const members = gid => S.items.filter(p => inGroup(p, gid));
-// Weak membership: an item is only loosely tied to the group. It is not laid out in the group or covered
-// by its area; a dotted line runs from the item to the group instead.
-const weakMembers = gid => S.items.filter(p => p.weak.includes(gid));
 const rootOf = gid => ancestors(gid).at(-1) || gid;
 // An item's first group decides where it "lives" (its chip is laid out there). A group's area
 // still stretches to cover all of its members, so areas overlap around items that are in several groups.
@@ -320,7 +369,6 @@ const fullName = g => [...ancestors(g.id).reverse().map(id => group(id).name), g
 function orderedGroups() { const out = []; const walk = (parentId, d) => S.groups.forEach(g => { if ((g.parent || null) === parentId) { out.push(g); walk(g.id, d + 1); } }); walk(null, 0); return out; }
 function subHeight(gid) { return Math.max(0, ...S.groups.filter(g => g.parent === gid).map(g => 1 + subHeight(g.id))); }
 function addToGroup(p, gid) {
-  p.weak = p.weak.filter(x => x !== gid);
   if (inGroup(p, gid)) return false;
   const anc = ancestors(gid); p.groups = p.groups.filter(x => !anc.includes(x)); p.groups.push(gid); return true;
 }
@@ -354,7 +402,7 @@ const wcache = new Map();
 function nodeW(p) {
   let tw = wcache.get(p.name);
   if (tw === undefined) { tw = mctx.measureText(p.name).width; wcache.set(p.name, tw); }
-  return Math.max(44, tw + 26 + (p.groups.length + p.weak.length) * 10);
+  return Math.max(44, tw + 26 + p.groups.length * 10);
 }
 function toWorld(cx, cy) { return {x: (cx - S.view.x) / S.view.k, y: (cy - S.view.y) / S.view.k}; }
 function toScreen(x, y) { return {x: x * S.view.k + S.view.x, y: y * S.view.k + S.view.y}; }
@@ -365,6 +413,25 @@ function hull(pts) {
   for (const p of pts) { while (lo.length >= 2 && cross(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); }
   for (const p of pts.reverse()) { while (up.length >= 2 && cross(up.at(-2), up.at(-1), p) <= 0) up.pop(); up.push(p); }
   return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+// "Organic" outline: a minimum spanning tree of a group's items (existing connections are always edges),
+// plus a virtual item at their centre of gravity that the tree may route through, which can make it shorter.
+// Every item is blended with its tree neighbours; the caller rounds the inner corners.
+function organicPolys(ps, corners) {
+  const n = ps.length, c = {x: ps.reduce((t, p) => t + p.x, 0) / n, y: ps.reduce((t, p) => t + p.y, 0) / n}, at = i => i < n ? ps[i] : c;
+  const idx = new Map(ps.map((p, i) => [p.id, i])), par = Array.from({length: n + 1}, (_, i) => i), adj = Array.from({length: n + 1}, () => new Set());
+  const find = i => par[i] === i ? i : (par[i] = find(par[i]));
+  const join = (i, j) => { adj[i].add(j); adj[j].add(i); par[find(i)] = find(j); };
+  for (const l of S.links) { const i = idx.get(l.a), j = idx.get(l.b); if (i !== undefined && j !== undefined) join(i, j); }
+  const es = [];
+  for (let i = 0; i <= n; i++) for (let j = i + 1; j <= n; j++) es.push([Math.hypot(at(i).x - at(j).x, at(i).y - at(j).y), i, j]);
+  es.sort((a, b) => a[0] - b[0]);
+  for (const [, i, j] of es) if (find(i) !== find(j)) join(i, j);
+  // the virtual item only counts where the tree really branches through it (a leaf there is dropped); it is as big as a typical item
+  const vc = adj[n].size >= 2 ? corners({x: c.x, y: c.y, name: 'Item', groups: []}) : null, reach = j => j < n ? corners(ps[j]) : vc || [];
+  const out = ps.map((p, i) => hull([...corners(p), ...[...adj[i]].flatMap(reach)]));
+  if (vc) out.push(hull(vc));
+  return out;
 }
 function clip(p, q) { // point on p's pill boundary toward q
   const dx = q.x - p.x, dy = q.y - p.y, hw = nodeW(p) / 2 + 3, hh = NH / 2 + 3;
@@ -422,7 +489,7 @@ function renderCanvas() {
   let h = '', labels = '';
   const selItemId = sel?.kind === 'item' ? sel.id : null;
   const areas = new Map();
-  areaSize = new Map();
+  areaSize = new Map(); areaCentre = new Map();
   // group hulls
   for (const g of orderedGroups()) {
     const ms = members(g.id); if (!ms.length) continue;
@@ -433,63 +500,80 @@ function renderCanvas() {
     const corners = p => { const w = nodeW(p) / 2, hh = NH / 2; return [[p.x - w, p.y - hh], [p.x + w, p.y - hh], [p.x - w, p.y + hh], [p.x + w, p.y + hh]]; };
     const inside = (poly, x, y) => { let sg = 0; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], c = Math.sign((b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0])); if (c) { if (sg && c !== sg) return false; sg = c; } } return true; };
     const settled = core.filter(p => !isBridge(p)), body = bbox(settled.length ? settled : core), msSet = new Set(ms), arms = [];
-    let hp = hull(pts.concat(...core.map(corners)));
+    const mode = g.hull === 'organic' || g.hull === 'rect' ? g.hull : 'convex';
+    const shape = q => { if (mode !== 'rect') return hull(q); const xs = q.map(v => v[0]), ys = q.map(v => v[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys); return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]; };
+    let hp = shape(pts.concat(...core.map(corners))); const kept = [...core];
     const guests = ms.filter(p => !coreSet.has(p)).map(p => { let near = core[0], d = Infinity; for (const c of core) { const v = gapTo(p, c); if (v < d) { d = v; near = c; } } return {p, near, d}; }).sort((a, b) => a.d - b.d);
     for (const {p, near, d} of guests) {
       // stretch the area over a member that lives elsewhere only if that swallows no item that isn't a member
-      const cand = d < 450 ? hull(hp.concat(corners(p))) : null;
-      if (cand && (d < 50 || !S.items.some(q => !msSet.has(q) && inside(cand, q.x, q.y)))) hp = cand;
+      const cand = d < 450 ? shape(hp.concat(corners(p))) : null;
+      if (cand && (d < 50 || !S.items.some(q => !msSet.has(q) && inside(cand, q.x, q.y)))) { hp = cand; kept.push(p); }
       else if (p.groups.includes(g.id)) arms.push([p, near]); // an item that is in via a subgroup is reached by that subgroup's arm only
     }
     const b = body;
-    areas.set(g.id, {hp, pad, color: cssColor(g)});
-    areaSize.set(g.id, dilatedArea(hp, pad));
+    const polys = mode === 'organic' ? organicPolys(kept, corners) : [hp];
+    let goo = ''; // organic areas are blurred and cut back to a sharp edge, which rounds off the inner corners
+    if (mode === 'organic') {
+      const fl = polys.flat(), m = pad / 2 + 90, x0 = Math.min(...fl.map(q => q[0])) - m, y0 = Math.min(...fl.map(q => q[1])) - m, x1 = Math.max(...fl.map(q => q[0])) + m, y1 = Math.max(...fl.map(q => q[1])) + m;
+      goo = `<defs><filter id="goo-${g.id}" filterUnits="userSpaceOnUse" x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="14"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"/></filter></defs>`;
+    }
+    areas.set(g.id, {polys, pad, color: cssColor(g)});
+    areaSize.set(g.id, polys.reduce((t, pl) => t + dilatedArea(pl, pad), 0));
+    { const fl = polys.flat(), xs = fl.map(q => q[0]), ys = fl.map(q => q[1]); areaCentre.set(g.id, {x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2}); }
     const on = sel?.kind === 'group' && sel.id === g.id;
-    h += `<g class="hull${on ? ' sel' : ''}${query && g.name.toLowerCase().includes(query.toLowerCase()) ? ' hit' : ''}" data-gid="${g.id}" fill="${cssColor(g)}" stroke="${cssColor(g)}"><path style="stroke-width:${pad}" d="M${hp.map(p => p.join(' ')).join('L')}Z"/>` +
+    h += `<g class="hull${on ? ' sel' : ''}${query && g.name.toLowerCase().includes(query.toLowerCase()) ? ' hit' : ''}" data-gid="${g.id}" fill="${cssColor(g)}" stroke="${cssColor(g)}">${goo}<path${goo ? ` filter="url(#goo-${g.id})"` : ''} style="stroke-width:${pad}" d="${polys.map(pl => 'M' + pl.map(p => p.join(' ')).join('L') + 'Z').join('')}"/>` +
       arms.map(([p, c]) => { const w = nodeW(p); return `<line x1="${p.x}" y1="${p.y}" x2="${c.x}" y2="${c.y}" style="stroke-width:16;stroke-linecap:round"/><rect x="${p.x - w / 2}" y="${p.y - NH / 2}" width="${w}" height="${NH}" rx="${NH / 2}" style="stroke-width:18"/>`; }).join('') + `</g>`;
-    labels += `<text class="glabel${g.parent ? ' sub' : ''}" data-gid="${g.id}" x="${b.x0 - pad / 2 + 10}" y="${b.y0 - pad / 2 - 8}" style="fill:${ink(cssColor(g))}">${esc(g.name)}</text>`;
+    // The label sits at the group's top-left edge, shifted by the offset (lx, ly) the user dragged it to, so it follows the group.
+    const fs = g.parent ? 12 : 15, lx = b.x0 - pad / 2 + 10 + (g.lx || 0), ly = b.y0 - pad / 2 - 8 + (g.ly || 0), lw = g.name.length * fs * 0.62 + 24;
+    labels += `<g class="glabel${g.parent ? ' sub' : ''}" data-gid="${g.id}"><rect x="${lx - 12}" y="${ly - fs - 10}" width="${lw}" height="${fs + 24}" rx="8"/><text x="${lx}" y="${ly}" style="fill:${ink(cssColor(g))}">${esc(g.name)}</text></g>` +
+      (on ? `<circle class="ghandle" data-gid="${g.id}" cx="${lx - 12 + lw + 10}" cy="${ly - fs / 2 + 2}" r="7"><title>Drag to connect this group to an item or group</title></circle>` : '');
   }
   h += labels;
-  // weak memberships: dotted line from the item to the edge of the group's area
-  for (const p of S.items) for (const gid of p.weak) {
-    const a = areas.get(gid); if (!a) continue;
-    let best = null, bd = Infinity;
-    for (let i = 0; i < a.hp.length; i++) {
-      const u = a.hp[i], v = a.hp[(i + 1) % a.hp.length], dx = v[0] - u[0], dy = v[1] - u[1];
-      const t = Math.max(0, Math.min(1, ((p.x - u[0]) * dx + (p.y - u[1]) * dy) / (dx * dx + dy * dy || 1)));
-      const qx = u[0] + t * dx, qy = u[1] + t * dy, d = Math.hypot(p.x - qx, p.y - qy);
-      if (d < bd) { bd = d; best = [qx, qy]; }
+  // links join any two items and/or groups; a group's end sits on the edge of its area
+  const cen = id => byId.get(id) || areaCentre.get(id);
+  const endAt = (id, toward) => {
+    const p = byId.get(id); if (p) return clip(p, toward);
+    const a = areas.get(id), c = areaCentre.get(id); if (!a) return null;
+    const dx = toward.x - c.x, dy = toward.y - c.y, len = Math.hypot(dx, dy) || 1;
+    let far = 0;
+    for (const poly of a.polys) for (let i = 0; i < poly.length; i++) { // where the ray from the centre leaves the outline
+      const u = poly[i], v = poly[(i + 1) % poly.length], ex = v[0] - u[0], ey = v[1] - u[1], den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const t = ((u[0] - c.x) * ey - (u[1] - c.y) * ex) / den, r = ((u[0] - c.x) * dy - (u[1] - c.y) * dx) / den;
+      if (t > 0 && r >= 0 && r <= 1) far = Math.max(far, t);
     }
-    if (!best || bd < a.pad / 2 + 30) continue; // already at or inside the area
-    const k = (a.pad / 2) / bd, ex = best[0] + (p.x - best[0]) * k, ey = best[1] + (p.y - best[1]) * k, c = clip(p, {x: ex, y: ey});
-    h += `<g class="weakline${selItemId && selItemId !== p.id ? ' dim' : ''}" style="stroke:${ink(a.color)};fill:${ink(a.color)}"><path d="M${c.x} ${c.y}L${ex} ${ey}"/><circle cx="${ex}" cy="${ey}" r="4.5" stroke="none"/></g>`;
-  }
-  // links
+    const t = far + (a.pad / 2 + 3) / len;
+    return t >= 1 ? {x: c.x, y: c.y, t: 0} : {x: c.x + dx * t, y: c.y + dy * t, t}; // the other end is inside this area: start at its centre
+  };
   const pairCount = {}, pairIdx = {};
   for (const l of S.links) { const k = [l.a, l.b].sort().join('|'); pairCount[k] = (pairCount[k] || 0) + 1; }
   for (const l of S.links) {
-    const a = byId.get(l.a), b = byId.get(l.b); if (!a || !b) continue;
+    const a = cen(l.a), b = cen(l.b); if (!a || !b) continue;
     const k = [l.a, l.b].sort().join('|'), i = pairIdx[k] = (pairIdx[k] ?? -1) + 1;
-    const c1 = clip(a, b), c2 = clip(b, a); if (c1.t + c2.t >= 1) continue;
+    const jp = l.pts || [], first = jp.length ? {x: jp[0][0], y: jp[0][1]} : b, lastP = jp.length ? {x: jp.at(-1)[0], y: jp.at(-1)[1]} : a;
+    const c1 = endAt(l.a, first), c2 = endAt(l.b, lastP); if (!c1 || !c2 || (!jp.length && c1.t + c2.t >= 1)) continue;
     let ox = 0, oy = 0;
-    if (pairCount[k] > 1) { const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, o = (i - (pairCount[k] - 1) / 2) * 9, sgn = l.a < l.b ? 1 : -1; ox = -dy / d * o * sgn; oy = dx / d * o * sgn; }
-    const d = `M${c1.x + ox} ${c1.y + oy}L${c2.x + ox} ${c2.y + oy}`;
-    const lt = typeOf(l.type), text = l.label || typeName(l.type);
+    if (pairCount[k] > 1 && !jp.length) { const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, o = (i - (pairCount[k] - 1) / 2) * 9, sgn = l.a < l.b ? 1 : -1; ox = -dy / d * o * sgn; oy = dx / d * o * sgn; }
+    const poly = [[c1.x + ox, c1.y + oy], ...jp, [c2.x + ox, c2.y + oy]], d = 'M' + poly.map(q => q.join(' ')).join('L');
+    let tot = 0; for (let i = 1; i < poly.length; i++) tot += Math.hypot(poly[i][0] - poly[i - 1][0], poly[i][1] - poly[i - 1][1]);
+    let mx = poly[0][0], my = poly[0][1], run = tot / 2; // the label sits halfway along the line
+    for (let i = 1; i < poly.length; i++) { const sl = Math.hypot(poly[i][0] - poly[i - 1][0], poly[i][1] - poly[i - 1][1]); if (run <= sl || i === poly.length - 1) { const f = sl ? run / sl : 0; mx = poly[i - 1][0] + (poly[i][0] - poly[i - 1][0]) * f; my = poly[i - 1][1] + (poly[i][1] - poly[i - 1][1]) * f; break; } run -= sl; }
+    const lt = typeOf(l.type), text = l.label || typeName(l.type), dash = DASH[lt?.line];
     const cls = `link${sel?.kind === 'link' && sel.id === l.id ? ' sel' : ''}${selItemId && l.a !== selItemId && l.b !== selItemId ? ' dim' : ''}`;
-    h += `<g class="${cls}" data-lid="${l.id}"><path class="hitbox" d="${d}"/><path class="vis" d="${d}"${lt?.dir ? ' marker-end="url(#arrow)"' : ''}/>` +
-      (text ? `<text x="${(c1.x + c2.x) / 2 + ox}" y="${(c1.y + c2.y) / 2 + oy}" text-anchor="middle" dy=".35em">${esc(text)}</text>` : '') + `</g>`;
+    h += `<g class="${cls}" data-lid="${l.id}"><path class="hitbox" d="${d}"/><path class="vis" d="${d}"${dash ? ` stroke-dasharray="${dash}"` : ''}${mk(lt?.start, 'start')}${mk(lt?.end, 'end')}/>` +
+      (text ? `<text x="${mx}" y="${my}" text-anchor="middle" dy=".35em">${esc(text)}</text>` : '') + `</g>`;
   }
   // nodes
   const q = query.toLowerCase(), mgs = q ? matchingGroups() : [];
   for (const p of S.items) {
-    const w = nodeW(p), n = p.groups.length + p.weak.length;
+    const w = nodeW(p), n = p.groups.length;
     const hit = q && matchesItem(p, q, mgs);
     const cls = `node${(sel?.kind === 'item' && sel.id === p.id) || multi.has(p.id) ? ' sel' : ''}${q ? (hit ? ' hit' : ' dim') : ''}`;
     h += `<g class="${cls}" data-iid="${p.id}" transform="translate(${p.x},${p.y})"><rect x="${-w / 2}" y="${-NH / 2}" width="${w}" height="${NH}" rx="${NH / 2}"/>`;
     p.groups.forEach((gid, i) => { h += `<circle cx="${-w / 2 + 14 + i * 10}" cy="0" r="4" fill="${cssColor(gm.get(gid))}"/>`; });
-    p.weak.forEach((gid, i) => { h += `<circle cx="${-w / 2 + 14 + (p.groups.length + i) * 10}" cy="0" r="3.2" fill="none" stroke-width="1.6" stroke="${cssColor(gm.get(gid))}"/>`; });
     h += `<text x="${n * 5 + (n ? 2 : 0)}" text-anchor="middle" dy=".35em">${esc(p.name)}</text><circle class="handle" cx="${w / 2}" cy="0" r="7"/></g>`;
   }
+  if (sel?.kind === 'link') (link(sel.id)?.pts || []).forEach((q, i) => { h += `<circle class="joint" data-lid="${sel.id}" data-ji="${i}" cx="${q[0]}" cy="${q[1]}" r="6"><title>Drag to move, double-click to remove</title></circle>`; });
   root.innerHTML = h;
   $('#empty').hidden = S.items.length > 0 || S.groups.length > 0;
 }
@@ -513,12 +597,23 @@ function renderSidebar() {
   const NB = '\u00a0'; // non-breaking space: a number never gets separated from its label
   $('#stats').textContent = [`${S.items.length}${NB}items`, `${S.groups.length}${NB}groups`, `${S.links.length}${NB}connections`].join(' · ');
 }
+const endObj = id => item(id) || group(id);
+const endLink = id => item(id) ? `<a data-act="selItem" data-iid="${id}">${esc(item(id).name)}</a>` : `<a data-act="selGroup" data-gid="${id}">${esc(group(id).name)}</a> <span style="color:var(--muted)">(group)</span>`;
 function linkPhrase(l, me) {
-  const other = item(l.a === me.id ? l.b : l.a), nm = `<a data-act="selItem" data-iid="${other.id}">${esc(other.name)}</a>`, t = esc(typeName(l.type));
-  const body = !typeOf(l.type)?.dir ? `${t}: ${nm}` : l.a === me.id ? `${t} → ${nm}` : `${t} ← ${nm}`;
+  const t = typeOf(l.type), d = dirOf(t), nm = endLink(l.a === me.id ? l.b : l.a), tn = esc(typeName(l.type));
+  const body = !d ? `${tn}: ${nm}` : (d === 'ab') === (l.a === me.id) ? `${tn} → ${nm}` : `${tn} ← ${nm}`;
   return `${body}${l.label ? ` <span style="color:var(--muted)">· ${esc(l.label)}</span>` : ''}`;
 }
-const typeOptions = (sel, extra = '') => S.linkTypes.map(t => `<option value="${t.id}"${t.id === sel ? ' selected' : ''}>${esc(t.name)}${t.dir ? ' →' : ''}</option>`).join('') + `<option value="__new"${sel === '__new' ? ' selected' : ''}>+ New type…</option>`;
+const typeOptions = (sel, extra = '') => S.linkTypes.map(t => `<option value="${t.id}"${t.id === sel ? ' selected' : ''}>${esc(t.name)}${dirOf(t) ? ' →' : ''}</option>`).join('') + `<option value="__new"${sel === '__new' ? ' selected' : ''}>+ New type…</option>`;
+function connSection(o) { // the connections of an item or group, and a row to add one to any other item or group
+  const ls = S.links.filter(l => l.a === o.id || l.b === o.id);
+  $('#dl2').innerHTML = [...S.items, ...S.groups].filter(x => x.id !== o.id).map(x => `<option value="${esc(x.name)}">`).join('');
+  return `<div class="lbl">Connections</div>
+    <ul class="list">${ls.map(l => `<li>${linePreview(typeOf(l.type))}<span class="grow">${linkPhrase(l, o)}</span><button class="x" title="Edit" data-act="selLink" data-lid="${l.id}">✎</button><button class="x" title="Remove" data-act="delLink" data-lid="${l.id}">×</button></li>`).join('')}</ul>
+    <div class="row"><select id="conn-type" style="width:120px;flex:none">${typeOptions(connType())}</select>
+      <input type="text" id="conn-name" list="dl2" placeholder="Item or group, Enter" data-enter="addConn"></div>
+    <div class="row" id="conn-newrow"${connType() === '__new' ? '' : ' hidden'}><input type="text" id="conn-newtype" placeholder="Name of the new type" data-enter="focusConnName"></div>`;
+}
 function renderInspector() {
   const o = getSel(), canShow = !isMobile() || inspOpen;
   if (!o && multi.size < 2) inspOpen = false;
@@ -538,27 +633,22 @@ function renderInspector() {
   insp.hidden = false;
   let h = '';
   if (sel.kind === 'item') {
-    const ls = S.links.filter(l => l.a === o.id || l.b === o.id);
-    setDatalist(S.items.filter(p => p.id !== o.id));
     h = `<input type="text" class="title" data-field="name" value="${esc(o.name)}" placeholder="Name">
-      <div class="lbl">Connections</div>
-      <ul class="list">${ls.map(l => `<li><span class="dot" style="background:var(--link)"></span><span class="grow">${linkPhrase(l, o)}</span><button class="x" title="Edit" data-act="selLink" data-lid="${l.id}">✎</button><button class="x" title="Remove" data-act="delLink" data-lid="${l.id}">×</button></li>`).join('')}</ul>
-      <div class="row"><select id="conn-type" style="width:120px;flex:none">${typeOptions(connType())}</select>
-        <input type="text" id="conn-name" list="dl" placeholder="Name, Enter" data-enter="addConn"></div>
-      <div class="row" id="conn-newrow"${connType() === '__new' ? '' : ' hidden'}><input type="text" id="conn-newtype" placeholder="Name of the new type" data-enter="focusConnName"><label class="chk" title="Draw the connection with an arrow, from this item to the other"><input type="checkbox" id="conn-newdir"> arrow</label></div>
+      ${connSection(o)}
       <div class="lbl">Notes</div>
       <textarea data-field="note" placeholder="Anything worth remembering…">${esc(o.note || '')}</textarea>
       <div class="lbl">Groups</div>
-      <div class="chips"><button class="chip newgroup" data-act="newGroupPill" title="Create a new group and put ${esc(o.name)} in it">+ Group</button>${orderedGroups().map(g => `<button class="chip${o.groups.includes(g.id) ? ' on' : inGroup(o, g.id) ? ' on implied' : o.weak.includes(g.id) ? ' weak' : ''}" data-act="toggleGroup" data-gid="${g.id}" title="${o.weak.includes(g.id) ? 'Weak member — click to remove' : o.groups.includes(g.id) ? 'Member — click to make it a weak tie' : 'Click to add'}"><span class="dot" style="${o.weak.includes(g.id) ? `box-shadow:inset 0 0 0 2px ${cssColor(g)}` : `background:${cssColor(g)}`}"></span>${esc(fullName(g))}${o.weak.includes(g.id) ? ' · weak' : ''}</button>`).join('') }</div>
-      ${S.groups.length ? '<div class="hint">Click a group to cycle: member → weak tie → not in it. Dragging from the blue dot onto a group also makes a weak tie.</div>' : ''}
+      <div class="chips"><button class="chip newgroup" data-act="newGroupPill" title="Create a new group and put ${esc(o.name)} in it">+ Group</button>${orderedGroups().map(g => `<button class="chip${o.groups.includes(g.id) ? ' on' : inGroup(o, g.id) ? ' on implied' : ''}" data-act="toggleGroup" data-gid="${g.id}" title="${o.groups.includes(g.id) ? 'Member — click to remove' : 'Click to add'}"><span class="dot" style="background:${cssColor(g)}"></span>${esc(fullName(g))}</button>`).join('') }</div>
       <div class="foot"><span></span><button class="danger" data-act="delItem">Delete item</button></div>`;
   } else if (sel.kind === 'group') {
     const ms = members(o.id);
     setDatalist(S.items.filter(p => !inGroup(p, o.id)));
-    const weak = weakMembers(o.id), subs = S.groups.filter(g => g.parent === o.id), banned = [o.id, ...descendants(o.id)];
+    const subs = S.groups.filter(g => g.parent === o.id), banned = [o.id, ...descendants(o.id)];
     h = `<input type="text" class="title" data-field="name" value="${esc(o.name)}" placeholder="Group name">
       <div class="lbl">Color</div>
       <div class="swatches">${PALETTE.map((c, i) => `<button data-act="setColor" data-color="${i}" class="${i === o.color ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div>
+      <div class="lbl">Hull</div>
+      <div class="seg">${[['organic', 'Organic'], ['convex', 'Convex'], ['rect', 'Rectangle']].map(([k, v]) => `<button data-act="setHull" data-hull="${k}" class="${(o.hull || 'convex') === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       <div class="lbl">Parent group</div>
       <select data-field="parent"><option value="">— none (top level) —</option>${orderedGroups().filter(g => !banned.includes(g.id)).map(g => `<option value="${g.id}"${g.id === o.parent ? ' selected' : ''}>${esc(fullName(g))}</option>`).join('')}</select>
       <div class="lbl">Subgroups</div>
@@ -567,22 +657,25 @@ function renderInspector() {
       <div class="lbl">Add items</div>
       <input type="text" id="g-add" list="dl" placeholder="Type a name, press Enter" data-enter="addMember">
       <div class="lbl">Items (${ms.length})</div>
-      <ul class="list">${ms.map(p => { const via = p.groups.find(x => x !== o.id && ancestors(x).includes(o.id)); return `<li><span class="grow"><a data-act="selItem" data-iid="${p.id}">${esc(p.name)}</a>${via ? ` <span style="color:var(--muted)">· ${esc(group(via).name)}</span>` : ''}</span>${via ? '' : `<button class="x" title="Make this a weak tie" data-act="makeWeak" data-iid="${p.id}">~</button>`}<button class="x" title="Remove from group" data-act="removeMember" data-iid="${p.id}">×</button></li>`; }).join('')}</ul>
-      ${weak.length ? `<div class="lbl">Weak ties (${weak.length})</div>
-      <ul class="list">${weak.map(p => `<li><span class="grow"><a data-act="selItem" data-iid="${p.id}">${esc(p.name)}</a></span><button class="x" title="Make a full member" data-act="makeStrong" data-iid="${p.id}">＋</button><button class="x" title="Remove the tie" data-act="removeWeak" data-iid="${p.id}">×</button></li>`).join('')}</ul>` : ''}
+      <ul class="list">${ms.map(p => { const via = p.groups.find(x => x !== o.id && ancestors(x).includes(o.id)); return `<li><span class="grow"><a data-act="selItem" data-iid="${p.id}">${esc(p.name)}</a>${via ? ` <span style="color:var(--muted)">· ${esc(group(via).name)}</span>` : ''}</span><button class="x" title="Remove from group" data-act="removeMember" data-iid="${p.id}">×</button></li>`; }).join('')}</ul>
+      ${connSection(o)}
       <div class="foot"><span></span><button class="danger" data-act="delGroup" title="Items and subgroups stay, only this group is removed">Delete group</button></div>`;
   } else {
-    const a = item(o.a), b = item(o.b), t = typeOf(o.type), n = S.links.filter(x => x.type === o.type).length;
-    h = `<div class="title"><a data-act="selItem" data-iid="${a.id}" style="cursor:pointer">${esc(a.name)}</a> ${t?.dir ? '→' : '—'} <a data-act="selItem" data-iid="${b.id}" style="cursor:pointer">${esc(b.name)}</a></div>
+    const a = endObj(o.a), b = endObj(o.b), t = typeOf(o.type), n = S.links.filter(x => x.type === o.type).length, d = dirOf(t);
+    h = `<div class="title">${endLink(o.a)} ${d === 'ab' ? '→' : d === 'ba' ? '←' : '—'} ${endLink(o.b)}</div>
       <div class="lbl">Type</div>
       <select id="l-type" data-field="type">${typeOptions(o.type)}</select>
-      <div class="row" id="l-newrow" hidden><input type="text" id="l-newtype" placeholder="Name of the new type, Enter" data-enter="linkNewType"><label class="chk"><input type="checkbox" id="l-newdir"> arrow</label></div>
+      <div class="row" id="l-newrow" hidden><input type="text" id="l-newtype" placeholder="Name of the new type, Enter" data-enter="linkNewType"></div>
       <div class="lbl">Rename type${n > 1 ? ` · used by ${n} connections` : ''}</div>
       <input type="text" data-field="typeName" value="${esc(t?.name || '')}">
-      <label class="chk wrap" style="margin-top:8px"><input type="checkbox" data-field="typeDir"${t?.dir ? ' checked' : ''}> Directed — arrow from ${esc(a.name)} to ${esc(b.name)}</label>
+      <div class="lbl">Line</div>
+      <div class="pickrow"><button class="pick" data-act="pick" data-field="typeLine" title="Line style">${lineIcon(t?.line)}</button></div>
+      <div class="lbl endlbl"><span class="nm" title="${esc(a.name)}">${esc(a.name)}</span><span class="fill"></span><span>ends</span><span class="fill"></span><span class="nm" title="${esc(b.name)}">${esc(b.name)}</span></div>
+      <div class="pickrow"><button class="pick" data-act="pick" data-field="typeStart" title="End at ${esc(a.name)}">${endIcon(t?.start, 'start')}</button><button class="pick" data-act="pick" data-field="typeEnd" title="End at ${esc(b.name)}">${endIcon(t?.end, 'end')}</button></div>
+      ${n > 1 ? `<div class="hint">Name, line and ends are shared by all ${n} connections of this type. Pick or add another type to style this one differently.</div>` : ''}
       <div class="lbl">Label (optional)</div>
       <input type="text" id="l-label" data-field="label" value="${esc(o.label || '')}" placeholder="e.g. since 2019, weekly, strong">
-      <div class="foot">${t?.dir ? '<button data-act="swap">Swap direction</button>' : '<span></span>'}<button class="danger" data-act="delSelLink">Delete connection</button></div>`;
+      <div class="foot"><button data-act="swap" title="Swap the two ends of this connection">Swap ends</button><button class="danger" data-act="delSelLink">Delete connection</button></div>`;
   }
   insp.innerHTML = h; syncSheets();
 }
@@ -593,7 +686,7 @@ function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.ad
 
 // ---------- operations ----------
 function addItem(name, opt = {}) {
-  const p = {id: uid(), name, note: '', groups: opt.groups || [], weak: [], x: 0, y: 0};
+  const p = {id: uid(), name, note: '', groups: opt.groups || [], x: 0, y: 0};
   let c;
   if (opt.x !== undefined) c = {x: opt.x, y: opt.y};
   else if (opt.near) c = {x: opt.near.x, y: opt.near.y + 60};
@@ -615,24 +708,19 @@ function addLink(a, b, type, label = '') {
   const l = {id: uid(), a, b, type, label}; S.links.push(l); return l;
 }
 function findByName(name, exclude) { const n = name.trim().toLowerCase(); return S.items.find(p => p.name.toLowerCase() === n && p.id !== exclude); }
-function weakTie(iid, gid) {
-  const p = item(iid), g = group(gid);
-  if (inGroup(p, gid)) return toast(`${p.name} is already a member of ${g.name}`);
-  if (p.weak.includes(gid)) return toast(`${p.name} already has a weak tie to ${g.name}`);
-  mutate(() => p.weak.push(gid));
-  toast(`Weak tie: ${p.name} → ${g.name}`);
-}
+function findEnd(name, exclude) { const n = name.trim().toLowerCase(); return findByName(name, exclude) || S.groups.find(g => g.name.toLowerCase() === n && g.id !== exclude); } // an item first, then a group
 let editing = false, lastConnType = null;
 const connType = () => typeOf(lastConnType) ? lastConnType : (lastConnType === '__new' || !S.linkTypes.length ? '__new' : S.linkTypes[0].id);
 function editField(f, v) {
   const o = getSel(); if (!o) return;
   if (f === 'type' && v === '__new') { $('#l-newrow').hidden = false; $('#l-newtype').focus(); return; } // naming a new type: nothing changes until Enter
   if (!editing) { pushUndo(); editing = true; }
-  if (f === 'typeName' || f === 'typeDir') { // these belong to the connection's type, so they change every connection of that type
+  const TF = {typeName: 'name', typeLine: 'line', typeStart: 'start', typeEnd: 'end'};
+  if (TF[f]) { // these belong to the connection's type, so they change every connection of that type
     const t = typeOf(o.type); if (!t) return;
-    if (f === 'typeName') t.name = v; else t.dir = !!v;
+    t[TF[f]] = v;
     save(); renderCanvas(); renderSidebar();
-    if (f === 'typeDir') renderInspector();
+    if (f !== 'typeName') renderInspector();
     return;
   }
   o[f] = v; save(); renderCanvas(); renderSidebar();
@@ -671,11 +759,7 @@ const acts = {
   toggleGroup: d => {
     const p = getSel();
     if (!p.groups.includes(d.gid) && inGroup(p, d.gid)) return toast('Included through a subgroup — remove the subgroup instead');
-    mutate(() => {
-      if (p.groups.includes(d.gid)) { p.groups = p.groups.filter(x => x !== d.gid); p.weak.push(d.gid); }   // member -> weak
-      else if (p.weak.includes(d.gid)) p.weak = p.weak.filter(x => x !== d.gid);                            // weak -> out
-      else addToGroup(p, d.gid);                                                                            // out -> member
-    });
+    mutate(() => { if (p.groups.includes(d.gid)) removeFromGroup(p, d.gid); else addToGroup(p, d.gid); });
   },
   newSub: (d, el) => {
     const name = el.value.trim(); if (!name) return;
@@ -685,19 +769,18 @@ const acts = {
   },
   delLink: d => mutate(() => { S.links = S.links.filter(l => l.id !== d.lid); }),
   delSelLink: () => { const id = sel.id; sel = null; mutate(() => { S.links = S.links.filter(l => l.id !== id); }); },
-  swap: () => mutate(() => { const l = getSel(); [l.a, l.b] = [l.b, l.a]; }),
+  swap: () => mutate(() => { const l = getSel(); [l.a, l.b] = [l.b, l.a]; l.pts?.reverse(); }),
   delItem: () => { const id = sel.id; sel = null; mutate(() => { S.items = S.items.filter(p => p.id !== id); S.links = S.links.filter(l => l.a !== id && l.b !== id); }); },
   delGroup: () => { const id = sel.id; sel = null; mutate(() => {
     const par = group(id).parent || null;
     S.groups = S.groups.filter(g => g.id !== id);
     S.groups.forEach(g => { if (g.parent === id) g.parent = par; });
-    S.items.forEach(p => { p.weak = p.weak.filter(g => g !== id); if (p.groups.includes(id)) { p.groups = p.groups.filter(g => g !== id); if (par && !inGroup(p, par)) p.groups.push(par); } });
+    S.links = S.links.filter(l => l.a !== id && l.b !== id);
+    S.items.forEach(p => { if (p.groups.includes(id)) { p.groups = p.groups.filter(g => g !== id); if (par && !inGroup(p, par)) p.groups.push(par); } });
   }); },
+  setHull: d => mutate(() => { const g = getSel(); if (d.hull === 'convex') delete g.hull; else g.hull = d.hull; }),
   setColor: d => mutate(() => { getSel().color = +d.color; }),
   removeMember: d => mutate(() => removeFromGroup(item(d.iid), sel.id)),
-  makeWeak: d => mutate(() => { const p = item(d.iid); p.groups = p.groups.filter(x => x !== sel.id); if (!p.weak.includes(sel.id)) p.weak.push(sel.id); }),
-  makeStrong: d => mutate(() => addToGroup(item(d.iid), sel.id)),
-  removeWeak: d => mutate(() => { const p = item(d.iid); p.weak = p.weak.filter(x => x !== sel.id); }),
   addMember: (d, el) => {
     const name = el.value.trim(); if (!name) return;
     const gid = sel.id; let p;
@@ -708,22 +791,32 @@ const acts = {
     });
     ensureVisible(p); $('#g-add')?.focus();
   },
+  pick: (d, el) => { // a small menu of pictures
+    const f = d.field, t = typeOf(getSel()?.type); if (!t) return;
+    const opts = f === 'typeLine' ? LINES.map(k => [k, lineIcon(k), LINE_LABELS[k]]) : ENDS.map(k => [k, endIcon(k, f === 'typeStart' ? 'start' : 'end'), END_LABELS[k]]);
+    pop.style.minWidth = '';
+    pop.innerHTML = opts.map(([k, ic, lab]) => `<button class="opt" data-val="${k}" title="${lab}">${ic}</button>`).join('');
+    pop.hidden = false;
+    const r = el.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pop.offsetWidth - 8)) + 'px';
+    pop.style.top = Math.min(r.bottom + 4, innerHeight - pop.offsetHeight - 8) + 'px';
+    pop.onclick = e => { const v = e.target.closest('[data-val]')?.dataset.val; if (!v) return; pop.hidden = true; editing = false; editField(f, v); editing = false; };
+  },
   focusConnName: () => $('#conn-name')?.focus(),
   linkNewType: (d, el) => {
     const name = el.value.trim(), l = getSel(); if (!name || !l) return;
-    const dir = $('#l-newdir').checked;
-    mutate(() => { l.type = ensureType(name, dir).id; });
+    mutate(() => { l.type = ensureType(name).id; });
   },
   addConn: (d, el) => {
     const name = el.value.trim(); if (!name) return;
     const me = getSel(); let tid = $('#conn-type').value;
-    const typeText = $('#conn-newtype')?.value.trim() || '', dir = !!$('#conn-newdir')?.checked;
+    const typeText = $('#conn-newtype')?.value.trim() || '';
     if (tid === '__new' && !typeText) { toast('Name the new connection type first'); $('#conn-newtype')?.focus(); return; }
     let l;
     mutate(() => {
-      if (tid === '__new') tid = ensureType(typeText, dir).id;
-      let other = findByName(name, me.id);
-      if (!other) { other = addItem(name, {near: me}); toast(`Created “${name}”`); }
+      if (tid === '__new') tid = ensureType(typeText).id;
+      let other = findEnd(name, me.id);
+      if (!other) { other = addItem(name, sel.kind === 'item' ? {near: me} : {}); toast(`Created “${name}”`); }
       l = addLink(me.id, other.id, tid);
     });
     lastConnType = tid; renderInspector(); $('#conn-name')?.focus();
@@ -807,15 +900,16 @@ function nameInput(cx, cy, gid) {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') commit(true); if (e.key === 'Escape') commit(false); e.stopPropagation(); });
   inp.addEventListener('blur', () => commit(true));
 }
+document.addEventListener('pointerdown', e => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.pick')) pop.hidden = true; });
 let pendingLink = null;
 function typePop(cx, cy, a, b) {
   pendingLink = {a, b}; pop.style.minWidth = '';
-  pop.innerHTML = S.linkTypes.map(t => `<button data-type="${t.id}"><span class="dot" style="background:var(--link)"></span>${esc(t.name)}${t.dir ? ` <span style="color:var(--muted)">→ ${esc(item(b).name)}</span>` : ''}</button>`).join('') + '<button data-newtype="1">+ New type…</button>';
+  pop.innerHTML = S.linkTypes.map(t => `<button data-type="${t.id}">${linePreview(t)}${esc(t.name)}</button>`).join('') + '<button data-newtype="1">+ New type…</button>';
   pop.hidden = false;
   pop.style.left = Math.min(cx, innerWidth - pop.offsetWidth - 12) + 'px'; pop.style.top = Math.min(cy, innerHeight - pop.offsetHeight - 12) + 'px';
   pop.onclick = e => {
     if (e.target.closest('[data-newtype]')) {
-      pop.innerHTML = '<div class="newtype"><input type="text" id="pop-newtype" placeholder="Name of the new type, Enter"><label class="chk"><input type="checkbox" id="pop-newdir"> arrow</label></div>';
+      pop.innerHTML = '<div class="newtype"><input type="text" id="pop-newtype" placeholder="Name of the new type, Enter"></div>';
       $('#pop-newtype').focus(); return;
     }
     const t = e.target.closest('[data-type]')?.dataset.type; if (!t) return;
@@ -829,14 +923,15 @@ pop.addEventListener('keydown', e => {
   if (e.key === 'Escape') { pop.hidden = true; return; }
   if (e.key !== 'Enter' || !pendingLink) return;
   const name = e.target.value.trim(); if (!name) return;
-  const {a, b} = pendingLink, dir = $('#pop-newdir').checked; pop.hidden = true; let l;
-  mutate(() => { l = addLink(a, b, ensureType(name, dir).id); });
+  const {a, b} = pendingLink; pop.hidden = true; let l;
+  mutate(() => { l = addLink(a, b, ensureType(name).id); });
   if (l) select('link', l.id);
 });
 
 // ---------- pointer interaction ----------
 // Area of a group's drawn shape: the polygon grown by half the outline width on every side.
-let areaSize = new Map();
+let areaSize = new Map(), areaCentre = new Map();
+const endCentre = id => item(id) || areaCentre.get(id);
 function dilatedArea(poly, pad) {
   let a = 0, per = 0;
   for (let i = 0; i < poly.length; i++) { const p = poly[i], q = poly[(i + 1) % poly.length]; a += p[0] * q[1] - q[0] * p[1]; per += Math.hypot(q[0] - p[0], q[1] - p[1]); }
@@ -876,12 +971,18 @@ svg.addEventListener('pointerdown', e => {
   const t = e.target, n = t.closest('.node'), gl = t.closest('.glabel'), lk = t.closest('.link');
   drag = {sx: e.clientX, sy: e.clientY, px: e.clientX, py: e.clientY, moved: false, touch: e.pointerType === 'touch'};
   if (e.button === 1) { drag.kind = 'pan'; drag.id = ''; svg.classList.add('panning'); e.preventDefault(); return; }
-  if (n && t.closest('.handle')) { drag.kind = 'connect'; drag.id = n.dataset.iid; }
+  if (t.closest('.joint')) { const j = t.closest('.joint'); drag.kind = 'joint'; drag.id = j.dataset.lid; drag.ji = +j.dataset.ji; }
+  else if (t.closest('.ghandle')) { drag.kind = 'connect'; drag.id = t.closest('.ghandle').dataset.gid; } // from a selected group's handle
+  else if (n && t.closest('.handle')) { drag.kind = 'connect'; drag.id = n.dataset.iid; }
   else if (n && e.shiftKey) { drag.kind = 'item'; drag.id = n.dataset.iid; drag.shift = true; toggleMulti(drag.id); }
   else if (n) { drag.kind = 'item'; drag.id = n.dataset.iid; if (!multi.has(drag.id) && !(sel?.kind === 'item' && sel.id === drag.id)) select('item', drag.id); }
-  else if (gl) { drag.kind = 'group'; drag.id = gl.dataset.gid; }
-  else if (lk) { drag.kind = 'link'; drag.id = lk.dataset.lid; }
-  else { drag.kind = 'marquee'; drag.id = groupAt(e.clientX, e.clientY); drag.shift = e.shiftKey; } // empty canvas or a group's area
+  else if (gl) { drag.kind = 'label'; drag.id = gl.dataset.gid; }
+  else if (lk) { drag.id = lk.dataset.lid; drag.kind = sel?.kind === 'link' && sel.id === drag.id ? 'bend' : 'link'; } // dragging the selected connection bends it
+  else {
+    drag.kind = 'marquee'; drag.id = groupAt(e.clientX, e.clientY); drag.shift = e.shiftKey;
+    // a selected group can be dragged by its area; remember whether the pointer is on it
+    drag.onSel = !e.shiftKey && sel?.kind === 'group' && document.elementsFromPoint(e.clientX, e.clientY).some(el => el.closest?.('.hull')?.dataset.gid === sel.id);
+  } // empty canvas or a group's area
   e.preventDefault();
 });
 window.addEventListener('pointermove', e => {
@@ -900,8 +1001,19 @@ window.addEventListener('pointermove', e => {
   if (!drag.moved) {
     if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
     drag.moved = true;
+    if (drag.kind === 'marquee' && drag.onSel && !drag.touch) { drag.kind = 'group'; drag.id = sel.id; }
     if (drag.kind === 'marquee' && drag.touch) { drag.kind = 'pan'; svg.classList.add('panning'); } // a finger on empty canvas drags the board
-    if (drag.kind === 'item' || drag.kind === 'group') pushUndo();
+    if (drag.kind === 'item' || drag.kind === 'group' || drag.kind === 'label' || drag.kind === 'joint' || drag.kind === 'bend') pushUndo();
+    if (drag.kind === 'bend') { // a new joint where the line was grabbed
+      const l = link(drag.id), w = toWorld(drag.sx, drag.sy), P = [endCentre(l.a), ...(l.pts || []).map(([x, y]) => ({x, y})), endCentre(l.b)];
+      let bi = 0, bd = Infinity;
+      for (let i = 0; i < P.length - 1; i++) {
+        const u = P[i], v = P[i + 1], dx = v.x - u.x, dy = v.y - u.y, tt = Math.max(0, Math.min(1, ((w.x - u.x) * dx + (w.y - u.y) * dy) / (dx * dx + dy * dy || 1)));
+        const dd = Math.hypot(w.x - u.x - tt * dx, w.y - u.y - tt * dy); if (dd < bd) { bd = dd; bi = i; }
+      }
+      l.pts = l.pts || []; l.pts.splice(bi, 0, [w.x, w.y]); drag.kind = 'joint'; drag.ji = bi;
+    }
+    if (drag.kind === 'label') { drag.g = S.groups.find(g => g.id === drag.id); if (drag.g) select('group', drag.id); }
     if (drag.kind === 'group') drag.ms = coreMembers(drag.id);
     if (drag.kind === 'item') drag.ms = multi.has(drag.id) ? [...multi].map(item) : drag.shift ? [] : [item(drag.id)];
     if (drag.kind === 'marquee') { // a plain box replaces the selection, with Shift it adds to it
@@ -919,8 +1031,10 @@ window.addEventListener('pointermove', e => {
     applyMarquee(drag, e.clientX, e.clientY); renderCanvas(); // the items inside light up while you drag
   }
   else if (drag.kind === 'item' || drag.kind === 'group') { drag.ms.forEach(p => { p.x += dx / k; p.y += dy / k; }); renderCanvas(); }
+  else if (drag.kind === 'joint') { const l = link(drag.id), w = toWorld(e.clientX, e.clientY); if (l?.pts?.[drag.ji]) { l.pts[drag.ji] = [w.x, w.y]; renderCanvas(); } }
+  else if (drag.kind === 'label' && drag.g) { drag.g.lx = (drag.g.lx || 0) + dx / k; drag.g.ly = (drag.g.ly || 0) + dy / k; renderCanvas(); }
   else if (drag.kind === 'connect') {
-    const a = item(drag.id), w = toWorld(e.clientX, e.clientY);
+    const a = item(drag.id) || areaCentre.get(drag.id), w = toWorld(e.clientX, e.clientY);
     temp.setAttribute('x1', a.x); temp.setAttribute('y1', a.y); temp.setAttribute('x2', w.x); temp.setAttribute('y2', w.y); temp.setAttribute('visibility', 'visible');
   }
 });
@@ -932,13 +1046,13 @@ window.addEventListener('pointerup', e => {
   if (d.moved && d.kind === 'marquee') { applyMarquee(d, e.clientX, e.clientY); return settleMulti(); }
   if (d.moved) {
     if (d.kind === 'connect') {
-      const el = document.elementFromPoint(e.clientX, e.clientY), target = el?.closest?.('.node')?.dataset.iid;
+      const el = document.elementFromPoint(e.clientX, e.clientY); // an item, else a group (its label or the smallest area there)
+      const target = el?.closest?.('.node')?.dataset.iid || el?.closest?.('.glabel')?.dataset.gid || groupAt(e.clientX, e.clientY);
       if (target && target !== d.id) typePop(e.clientX + 8, e.clientY + 8, d.id, target);
-      else if (!target) { const gid = el?.closest?.('.hull, .glabel')?.dataset.gid; if (gid) weakTie(d.id, gid); } // dropped on a group
     } else save();
     return;
   }
-  const key = d.kind + d.id, now = performance.now();
+  const key = d.kind + d.id + (d.ji ?? ''), now = performance.now();
   const dbl = now - last.t < 380 && last.key === key && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 8;
   last = {t: dbl ? 0 : now, x: e.clientX, y: e.clientY, key};
   const phone = isMobile();
@@ -955,8 +1069,9 @@ window.addEventListener('pointerup', e => {
     else if (!d.shift && multi.size) { select('item', d.id); if (dbl && phone) openInsp(); }
     else if (dbl && !d.shift) { if (phone) openInsp(); else { const i = insp.querySelector('[data-field=name]'); i?.focus(); i?.select(); } }
   }
-  else if (d.kind === 'group') { select('group', d.id); if (dbl) { if (phone) openInsp(); else $('#g-add')?.focus(); } }
-  else if (d.kind === 'link') { select('link', d.id); if (dbl && phone) openInsp(); }
+  else if (d.kind === 'label') { select('group', d.id); if (dbl) { if (phone) openInsp(); else $('#g-add')?.focus(); } }
+  else if (d.kind === 'joint') { if (dbl) mutate(() => { const l = link(d.id); l.pts.splice(d.ji, 1); if (!l.pts.length) delete l.pts; }); } // double-click removes the joint
+  else if (d.kind === 'link' || d.kind === 'bend') { select('link', d.id); if (dbl && phone) openInsp(); }
 });
 svg.addEventListener('wheel', e => {
   e.preventDefault();
@@ -1035,7 +1150,7 @@ function groupBox(g, homes, bridged) { // a group's own items and its subgroups,
     place: (ox, oy) => items.forEach(i => i.place(ox + BOX_PAD + i.x, oy + top + i.y))};
 }
 // Which way each item is drawn by what it has outside its own block: connections to items elsewhere,
-// other subgroups it is in, and weak ties. Used to put it on that side of the block.
+// and other subgroups it is in. Used to put it on that side of the block.
 let pulls = null;
 function computePulls(mirrored) {
   const byId = new Map(S.items.map(p => [p.id, p])), out = new Map(), byHome = new Map(), centres = new Map();
@@ -1046,7 +1161,7 @@ function computePulls(mirrored) {
     for (const p of ps) {
       const t = [];
       for (const l of S.links) { const o = l.a === p.id ? byId.get(l.b) : l.b === p.id ? byId.get(l.a) : null; if (o && (o.groups[0] !== home || isBridge(o))) t.push(o); }
-      for (const g of [...p.groups.slice(1), ...p.weak]) { const k = centreOf(g); if (k) t.push(k); }
+      for (const g of p.groups.slice(1)) { const k = centreOf(g); if (k) t.push(k); }
       if (!t.length) continue;
       let dx = t.reduce((s, q) => s + q.x, 0) / t.length - c.x, dy = t.reduce((s, q) => s + q.y, 0) / t.length - c.y;
       if (mirrored.has(rootOf(home))) dy = -dy; // that group's box is laid out upside down
@@ -1262,11 +1377,12 @@ function fileMenu(btn) {
     : !fileHandle ? '<button data-f="new">Save to a new file…</button><button data-f="open">Open an existing file…</button>'
     : !fileOK ? `<button data-f="reconnect" class="danger">Reconnect ${esc(fileHandle.name)}</button><button data-f="unlink">Stop saving to this file</button>`
     : '<button data-f="now">Save now</button><button data-f="unlink">Stop saving to this file</button>';
-  pop.innerHTML = top + '<div class="sep"></div><button data-f="json">Export as JSON</button><button data-f="md">Export as Markdown</button><button data-f="import">Import…</button><div class="sep"></div><button data-f="newboard" class="danger">New board…</button>';
+  pop.innerHTML = top + '<div class="sep"></div><button data-f="json">Export as JSON</button><button data-f="md">Export as Markdown</button><button data-f="image">Export as image…</button><button data-f="import">Import…</button><div class="sep"></div><button data-f="newboard" class="danger">New board…</button>';
   pop.style.minWidth = '230px'; placePop(btn);
   pop.onclick = async e => {
     const f = e.target.closest('[data-f]')?.dataset.f; if (!f) return;
     if (f === 'newboard') return confirmNewBoard(btn);
+    if (f === 'image') return exportChooser(btn);
     pop.hidden = true;
     const types = [{description: 'Graph data', accept: {'application/json': ['.json']}}], stamp = new Date().toISOString().slice(0, 10);
     try {
@@ -1313,14 +1429,125 @@ function download(name, text, type) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name; a.click(); URL.revokeObjectURL(a.href);
 }
-function toMarkdown() { // "# graph name", then "## group", "### subgroup", one item per line, weak ties, connections
+
+// ---------- image export (SVG, PNG, WebP) ----------
+let exp = null, expSel = null;
+const expOpt = {fmt: 'png', scale: 2, bg: 'solid'};
+// The drawing's own styles, with the colours of the theme that is on screen, so the file looks like the board.
+const LIGHT = {'--bg': '#f4f5f7', '--text': '#1c2024', '--muted': '#6b7280', '--node': '#ffffff', '--node-stroke': '#c3c9d2', '--link': '#8b93a0', '--accent': '#3b5bdb'};
+const themeVars = light => { const cs = getComputedStyle(document.documentElement); return Object.fromEntries(Object.keys(LIGHT).map(v => [v, light ? LIGHT[v] : cs.getPropertyValue(v).trim()])); };
+const varCSS = vars => Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';');
+function exportCSS(skipRoot) {
+  let css = skipRoot ? '' : ':root{' + varCSS(themeVars(false)) + '}';
+  for (const sh of document.styleSheets) {
+    let rules; try { rules = sh.cssRules; } catch { continue; }
+    for (const r of rules) if (r.selectorText && /^(svg text|svg g\.glabel|svg \.hull|\.hull|\.node|\.link)/.test(r.selectorText) && !/:hover|handle|hitbox/.test(r.selectorText)) css += r.cssText;
+  }
+  return css;
+}
+function exportSVG(r, solid, print) { // r is a rectangle of the board, in board coordinates; print: light colours, to sit inside the page
+  const c = root.cloneNode(true);
+  c.querySelectorAll('.handle,.ghandle,.joint,.hitbox,title').forEach(e => e.remove());
+  c.querySelectorAll('.sel,.hit,.dim').forEach(e => e.classList.remove('sel', 'hit', 'dim'));
+  c.querySelectorAll('*').forEach(e => { for (const a of [...e.attributes]) if (a.name.startsWith('data-')) e.removeAttribute(a.name); });
+  const ser = new XMLSerializer(), bg = themeVars(print)['--bg'];
+  if (print) { // sits inside the page: its own colours, its own ids, as large as the sheet allows
+    return (`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${r.x} ${r.y} ${r.w} ${r.h}" style="width:100%;height:100%;${varCSS(themeVars(true))}"><style>${exportCSS(true)}</style>` +
+      ser.serializeToString(svg.querySelector('defs')) + ser.serializeToString(c) + '</svg>').replace(/(id="|url\(#)((?:m|goo)-)/g, '$1p$2');
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${r.x} ${r.y} ${r.w} ${r.h}" width="${r.w}" height="${r.h}"><style>${exportCSS()}</style>` +
+    ser.serializeToString(svg.querySelector('defs')) + (solid ? `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${bg}"/>` : '') + ser.serializeToString(c) + '</svg>';
+}
+function expScale(r) { // the picture is never bigger than browsers can draw
+  return expOpt.fmt === 'svg' ? 1 : Math.min(expOpt.scale, 8192 / Math.max(r.w, r.h), Math.sqrt(64e6 / (r.w * r.h)));
+}
+function exportChooser(btn) {
+  if (!S.items.length && !S.groups.length) return toast('The board is empty');
+  pop.innerHTML = '<div class="menunote">Export as an image: SVG, PNG or WebP. What should it contain?</div><button data-e="all">Whole board</button><button data-e="area">Select an area with the mouse…</button><button data-e="no">Cancel</button>';
+  placePop(btn);
+  pop.onclick = e => {
+    const v = e.target.closest('[data-e]')?.dataset.e; if (!v) return;
+    pop.hidden = true;
+    if (v === 'all') { openExport(boardRect()); }
+    else if (v === 'area') { expSel = {}; document.body.classList.add('exportsel'); $('#exphint').hidden = false; }
+  };
+}
+function endExportSelect() { expSel = null; document.body.classList.remove('exportsel'); $('#exphint').hidden = true; $('#marq').hidden = true; }
+svg.addEventListener('pointerdown', e => { // while choosing an area, the canvas only draws the box
+  if (!expSel) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  if (e.button !== 0) return;
+  try { svg.setPointerCapture(e.pointerId); } catch {}
+  expSel.s = {x: e.clientX, y: e.clientY};
+}, true);
+window.addEventListener('pointermove', e => {
+  if (!expSel?.s) return;
+  const a = expSel.s, m = $('#marq');
+  m.hidden = false; m.style.left = Math.min(a.x, e.clientX) + 'px'; m.style.top = Math.min(a.y, e.clientY) + 'px';
+  m.style.width = Math.abs(e.clientX - a.x) + 'px'; m.style.height = Math.abs(e.clientY - a.y) + 'px';
+});
+window.addEventListener('pointerup', e => {
+  if (!expSel?.s) return;
+  const a = expSel.s; expSel.s = null; $('#marq').hidden = true;
+  if (Math.abs(e.clientX - a.x) < 12 || Math.abs(e.clientY - a.y) < 12) return; // too small: try again
+  const p = toWorld(Math.min(a.x, e.clientX), Math.min(a.y, e.clientY)), q = toWorld(Math.max(a.x, e.clientX), Math.max(a.y, e.clientY));
+  endExportSelect();
+  openExport({x: Math.round(p.x), y: Math.round(p.y), w: Math.round(q.x - p.x), h: Math.round(q.y - p.y)});
+});
+$('#exphintx').onclick = endExportSelect;
+window.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || (!expSel && !exp)) return;
+  e.stopPropagation(); expSel ? endExportSelect() : closeExport();
+}, true);
+function openExport(r) { exp = {r}; $('#exp').hidden = false; renderExp(); }
+function closeExport() { exp = null; $('#exp').hidden = true; $('#exp').innerHTML = ''; }
+function renderExp() {
+  const r = exp.r, raster = expOpt.fmt !== 'svg', k = expScale(r);
+  const seg = (key, opts) => `<div class="seg">${opts.map(([v, l]) => `<button data-o="${key}" data-v="${v}" class="${expOpt[key] == v ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  const src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(exportSVG(r, expOpt.bg === 'solid'));
+  $('#exp').innerHTML = `<div class="title" style="font-size:15px;font-weight:600">Export as image</div>
+    <div class="prev"><img alt="Preview" src="${src}"></div>
+    <div class="lbl">Format</div>${seg('fmt', [['svg', 'SVG'], ['png', 'PNG'], ['webp', 'WebP']])}
+    <div class="lbl">Background</div>${seg('bg', [['transparent', 'Transparent'], ['solid', 'Board colour']])}
+    ${raster ? `<div class="lbl">Resolution</div>${seg('scale', [[1, '1×'], [2, '2×'], [3, '3×']])}` : ''}
+    <div class="hint">${raster ? `${Math.round(r.w * k)} × ${Math.round(r.h * k)} px${k < expOpt.scale ? ' (reduced to the largest size browsers can draw)' : ''}` : `${r.w} × ${r.h}, scales without losing sharpness`}</div>
+    <div class="foot"><button data-x="cancel">Cancel</button><button class="go" data-x="go">Export</button></div>`;
+}
+$('#exp').addEventListener('click', async e => {
+  const o = e.target.closest('[data-o]'), x = e.target.closest('[data-x]')?.dataset.x;
+  if (o) { expOpt[o.dataset.o] = o.dataset.o === 'scale' ? +o.dataset.v : o.dataset.v; return renderExp(); }
+  if (x === 'cancel') return closeExport();
+  if (x !== 'go') return;
+  try { await doExport(exp.r); closeExport(); } catch (err) { toast('That did not work: ' + err.message); }
+});
+async function doExport(r) {
+  const text = exportSVG(r, expOpt.bg === 'solid'), name = `${slug()}-${new Date().toISOString().slice(0, 10)}`;
+  if (expOpt.fmt === 'svg') return download(name + '.svg', text, 'image/svg+xml');
+  const k = expScale(r), W = Math.round(r.w * k), H = Math.round(r.h * k), type = expOpt.fmt === 'webp' ? 'image/webp' : 'image/png';
+  const img = new Image();
+  await new Promise((ok, no) => { img.onload = ok; img.onerror = () => no(new Error('the drawing could not be rendered')); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text); });
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  cv.getContext('2d').drawImage(img, 0, 0, W, H);
+  const blob = await new Promise(ok => cv.toBlob(ok, type, 0.95));
+  if (!blob) throw new Error('the image is too large for this browser');
+  if (blob.type !== type) toast('This browser cannot save WebP, so the file is a PNG');
+  download(name + (blob.type === 'image/webp' ? '.webp' : '.png'), blob, blob.type);
+}
+// Printing (Cmd/Ctrl+P): the page shows only the whole board, in light colours, fitted to the sheet.
+function boardRect() { const b = root.getBBox(), m = 80; return {x: Math.floor(b.x - m), y: Math.floor(b.y - m), w: Math.ceil(b.width + 2 * m), h: Math.ceil(b.height + 2 * m)}; }
+window.addEventListener('beforeprint', () => {
+  if (!S.items.length && !S.groups.length) return;
+  const r = boardRect(), st = document.createElement('style'); st.id = 'printpage';
+  st.textContent = `@page{size:${r.w >= r.h ? 'landscape' : 'portrait'};margin:10mm}`; document.head.appendChild(st);
+  $('#printsheet').innerHTML = exportSVG(r, false, true);
+});
+window.addEventListener('afterprint', () => { $('#printsheet').innerHTML = ''; $('#printpage')?.remove(); });
+function toMarkdown() { // "# graph name", then "## group", "### subgroup", one item per line, connections
   const out = ['# ' + graphTitle()], byId = new Map(S.items.map(p => [p.id, p]));
   const line = p => p.name + (p.note ? ' - ' + p.note.trim().replace(/\s*\n\s*/g, ' / ') : '');
   const walk = (g, depth) => {
     out.push('', '#'.repeat(depth + 1) + ' ' + g.name);
     for (const p of S.items) if (p.groups.includes(g.id)) out.push(line(p));
-    const weak = weakMembers(g.id);
-    if (weak.length) out.push('', 'Weak ties: ' + weak.map(p => p.name).join(', '));
     S.groups.filter(c => c.parent === g.id).forEach(c => walk(c, depth + 1));
   };
   S.groups.filter(g => !g.parent).forEach(g => walk(g, 1));
@@ -1328,7 +1555,8 @@ function toMarkdown() { // "# graph name", then "## group", "### subgroup", one 
   if (loose.length) { out.push('', '## (no group)'); loose.forEach(p => out.push(line(p))); }
   if (S.links.length) {
     out.push('', '## Connections');
-    for (const l of S.links) out.push(`- ${byId.get(l.a).name} ${typeOf(l.type)?.dir ? '→' : '—'} ${byId.get(l.b).name} (${typeName(l.type)}${l.label ? ': ' + l.label : ''})`);
+    const nm = id => byId.get(id)?.name ?? `${group(id).name} (group)`;
+    for (const l of S.links) { const d = dirOf(typeOf(l.type)); out.push(`- ${nm(l.a)} ${d === 'ab' ? '→' : d === 'ba' ? '←' : '—'} ${nm(l.b)} (${typeName(l.type)}${l.label ? ': ' + l.label : ''})`); }
   }
   return out.join('\n').trim() + '\n';
 }
@@ -1360,26 +1588,16 @@ $('#zoom').addEventListener('click', e => {
   if (z === 'in') zoomAt(cx, cy, 1.25); else if (z === 'out') zoomAt(cx, cy, 0.8); else if (z === 'reset') zoomAt(cx, cy, 1 / S.view.k); else if (z === 'fit') fit();
 });
 
-// ---------- sample ----------
-$('#load-sample').addEventListener('click', () => {
-  const G = [['Frontend', 5], ['Backend', 3], ['Data', 6]].map(([name, c]) => ({id: uid(), name, color: c}));
-  const g = Object.fromEntries(G.map(x => [x.name, x.id]));
-  const pipes = {id: uid(), name: 'Pipelines', color: 6, parent: g['Data']}; G.push(pipes);
-  const spec = {
-    'Web app': ['Frontend'], 'Mobile app': ['Frontend'], 'Design system': ['Frontend'],
-    'API gateway': ['Backend'], 'Auth service': ['Backend'], 'Billing': ['Backend'], 'Notifications': ['Backend'],
-    'Warehouse': ['Data'], 'Dashboards': ['Data'], 'Nightly import': [pipes.id], 'Event stream': [pipes.id],
-  };
-  const byName = {};
-  Object.entries(spec).forEach(([name, groups], i) => { const a = i * 2.4; byName[name] = {id: uid(), name, note: '', groups: groups.map(n => g[n] || n), weak: [], x: Math.cos(a) * 300, y: Math.sin(a) * 300}; });
-  byName['Auth service'].weak = [g['Data']]; // a loose tie: it writes audit logs to the warehouse
-  const T = [{id: uid(), name: 'depends on', dir: true}, {id: uid(), name: 'related to', dir: false}];
-  const L = [['Web app', 'API gateway', 0], ['Mobile app', 'API gateway', 0], ['Web app', 'Design system', 0], ['API gateway', 'Auth service', 0], ['API gateway', 'Billing', 0],
-    ['Billing', 'Notifications', 0], ['Dashboards', 'Warehouse', 0], ['Nightly import', 'Warehouse', 0], ['Event stream', 'Warehouse', 0], ['Billing', 'Event stream', 1]];
+// ---------- samples ----------
+// Three small boards to start from; they are replaced by whatever you build.
+const SAMPLES = {"org":{"name":"Company org chart","items":[{"id":"jwzmvoid","name":"Michal","note":"","groups":["8yj3dy4d"],"x":-47,"y":-278},{"id":"vfrztnyy","name":"Simon","note":"","groups":["1vtn24i6"],"x":-17,"y":-36},{"id":"x02eorqy","name":"Franta","note":"","groups":["1vtn24i6","wtk11b96"],"x":-128,"y":44},{"id":"ldkmyurv","name":"Filip","note":"","groups":["1vtn24i6","jcw1k3zv"],"x":66,"y":67},{"id":"zg1e0vhi","name":"Adam","note":"","groups":["wtk11b96","1vtn24i6"],"x":-258,"y":121},{"id":"z240ldd9","name":"Tomas","note":"","groups":["wtk11b96","1vtn24i6"],"x":-149,"y":154},{"id":"x0l328eo","name":"Jakub","note":"","groups":["jcw1k3zv","1vtn24i6"],"x":92,"y":187},{"id":"n4bskgeg","name":"Marko","note":"","groups":["jcw1k3zv","1vtn24i6"],"x":277,"y":182},{"id":"zfrvngzd","name":"Victor","note":"","groups":["8yj3dy4d"],"x":116,"y":-223},{"id":"1jwslq4j","name":"YJ","note":"","groups":["f4zkktig"],"x":-361,"y":-296},{"id":"4brrr972","name":"Mia","note":"","groups":["vwht8eo8"],"x":64,"y":332},{"id":"hbzk4v3m","name":"Barbara","note":"","groups":["8yj3dy4d"],"x":82,"y":-368},{"id":"ndkxj9b9","name":"Maria","note":"","groups":["vwht8eo8"],"x":-30,"y":347}],"groups":[{"id":"8yj3dy4d","name":"Product","parent":null,"color":0,"lx":10,"ly":-2},{"id":"1vtn24i6","name":"Engineering","parent":null,"color":2},{"id":"wtk11b96","name":"Web","parent":null,"color":0,"lx":106,"ly":-124},{"id":"jcw1k3zv","name":"Native Apps","parent":null,"color":1,"lx":21,"ly":-116},{"id":"f4zkktig","name":"Design","parent":null,"color":3},{"id":"vwht8eo8","name":"Agile Delivery","parent":null,"color":4,"lx":-7,"ly":2}],"links":[{"id":"5jkyn5bx","a":"x02eorqy","b":"vfrztnyy","type":"gdtlh3xf","label":""},{"id":"dbemrebn","a":"ldkmyurv","b":"vfrztnyy","type":"gdtlh3xf","label":""},{"id":"yoj8byv5","a":"z240ldd9","b":"x02eorqy","type":"gdtlh3xf","label":""},{"id":"egar5weg","a":"zg1e0vhi","b":"x02eorqy","type":"gdtlh3xf","label":""},{"id":"mbkptnbq","a":"n4bskgeg","b":"ldkmyurv","type":"gdtlh3xf","label":""},{"id":"kkam7y10","a":"x0l328eo","b":"ldkmyurv","type":"gdtlh3xf","label":""},{"id":"uyujycat","a":"zfrvngzd","b":"jwzmvoid","type":"gdtlh3xf","label":""},{"id":"5ovaqfbs","a":"f4zkktig","b":"8yj3dy4d","type":"rzchrnov","label":""},{"id":"78gwey9c","a":"4brrr972","b":"jcw1k3zv","type":"rzchrnov","label":""},{"id":"pymrnaat","a":"hbzk4v3m","b":"jwzmvoid","type":"gdtlh3xf","label":""},{"id":"8pk7dxu4","a":"ndkxj9b9","b":"vfrztnyy","type":"rzchrnov","label":""}],"linkTypes":[{"id":"gdtlh3xf","name":"reports to","line":"solid","start":"none","end":"arrow"},{"id":"rzchrnov","name":"works with","line":"solid","start":"none","end":"none"}]},"prizes":{"name":"Literature prizes","items":[{"id":"8g3j04xm","name":"J. M. Coetzee","note":"","groups":["75c64jct","hkmoncr9"],"x":-209,"y":6},{"id":"fywf4btf","name":"Margaret Atwood","note":"","groups":["75c64jct"],"x":-448,"y":-151},{"id":"j3vte1ha","name":"Mario Vargas Llosa","note":"","groups":["hkmoncr9"],"x":43,"y":301},{"id":"ai723wwt","name":"V. S. Naipaul","note":"","groups":["hkmoncr9","75c64jct"],"x":-212,"y":-45},{"id":"t2pdejg9","name":"Anatole France","note":"","groups":["hkmoncr9"],"x":-44,"y":232},{"id":"gdc6mr65","name":"William Golding","note":"","groups":["75c64jct","hkmoncr9"],"x":-247,"y":59},{"id":"owz8ayf4","name":"Nadine Gordimer","note":"","groups":["75c64jct","hkmoncr9"],"x":-221,"y":-102},{"id":"3563li49","name":"Shehan Karunatilaka","note":"","groups":["75c64jct"],"x":-552,"y":-70},{"id":"nqf8nrb3","name":"McEwan","note":"","groups":["75c64jct","h24r0ust"],"x":-607,"y":49},{"id":"6t1ehliq","name":"Jorge Luis Borges","note":"","groups":["h24r0ust"],"x":-612,"y":171},{"id":"2ev3wtdl","name":"Bertrand Russell","note":"","groups":["h24r0ust","hkmoncr9"],"x":-423,"y":307},{"id":"gtghtcjl","name":"Octavio Paz","note":"","groups":["h24r0ust","hkmoncr9"],"x":-426,"y":245}],"groups":[{"id":"75c64jct","name":"Booker Prize","parent":null,"color":0,"hull":"organic","lx":140,"ly":-6},{"id":"hkmoncr9","name":"Nobel Prize","parent":null,"color":3,"lx":102,"ly":-26,"hull":"organic"},{"id":"h24r0ust","name":"Jerusalem Prize","parent":null,"color":5,"lx":-136,"ly":65}],"links":[],"linkTypes":[]},"components":{"name":"Component diagram","items":[{"id":"6x41wrgp","name":"Web app","note":"","groups":["aeece0oa"],"x":-271,"y":439},{"id":"sl5c3zp2","name":"Mobile app","note":"","groups":["aeece0oa"],"x":-83,"y":515},{"id":"q5ig9o3d","name":"Design system","note":"","groups":["aeece0oa"],"x":-188,"y":600},{"id":"tj8fxmyv","name":"API gateway","note":"","groups":["vsvs52vd"],"x":217,"y":204},{"id":"kj0koq73","name":"Auth service","note":"","groups":["vsvs52vd"],"x":305,"y":298},{"id":"w7hwymfu","name":"Billing","note":"","groups":["vsvs52vd"],"x":96,"y":129},{"id":"jydjvr6k","name":"Notifications","note":"","groups":["vsvs52vd"],"x":230,"y":54},{"id":"698obi1r","name":"Warehouse","note":"","groups":["97jesdgw"],"x":-276,"y":101},{"id":"xupn1lua","name":"Dashboards","note":"","groups":["97jesdgw"],"x":-189,"y":2},{"id":"dkl11lhl","name":"Nightly import","note":"","groups":["q3suzs72"],"x":-278,"y":214},{"id":"l9pwn4yb","name":"Event stream","note":"","groups":["q3suzs72"],"x":-130,"y":216}],"groups":[{"id":"aeece0oa","name":"Frontend","color":5,"parent":null},{"id":"vsvs52vd","name":"Backend","color":3,"parent":null},{"id":"97jesdgw","name":"Data","color":6,"parent":null,"lx":125,"ly":-1},{"id":"q3suzs72","name":"Pipelines","color":6,"parent":"97jesdgw","lx":127,"ly":78}],"links":[{"id":"jv4jbq66","a":"6x41wrgp","b":"tj8fxmyv","type":"tb3gr1hf","label":""},{"id":"yx42n9sq","a":"sl5c3zp2","b":"tj8fxmyv","type":"tb3gr1hf","label":""},{"id":"e22umflu","a":"6x41wrgp","b":"q5ig9o3d","type":"tb3gr1hf","label":""},{"id":"z7fqom7t","a":"tj8fxmyv","b":"kj0koq73","type":"tb3gr1hf","label":""},{"id":"79oghrq0","a":"tj8fxmyv","b":"w7hwymfu","type":"tb3gr1hf","label":""},{"id":"0ja2199x","a":"w7hwymfu","b":"jydjvr6k","type":"tb3gr1hf","label":""},{"id":"roe17qne","a":"xupn1lua","b":"698obi1r","type":"tb3gr1hf","label":""},{"id":"0tfbxwj4","a":"dkl11lhl","b":"698obi1r","type":"tb3gr1hf","label":""},{"id":"2leo04e2","a":"l9pwn4yb","b":"698obi1r","type":"tb3gr1hf","label":""},{"id":"nysry6d5","a":"w7hwymfu","b":"l9pwn4yb","type":"djzfjc8t","label":""},{"id":"ugu5zfub","a":"sl5c3zp2","b":"q5ig9o3d","type":"tb3gr1hf","label":""}],"linkTypes":[{"id":"tb3gr1hf","name":"depends on","line":"solid","start":"none","end":"arrow"},{"id":"djzfjc8t","name":"related to","line":"solid","start":"none","end":"none"}]},"family":{"name":"Family tree","items":[{"id":"josef","name":"Josef Novak","note":"","groups":["gN"],"x":66,"y":-25},{"id":"anna","name":"Anna Novakova","note":"","groups":["gN","gH"],"x":-180,"y":0},{"id":"vaclav","name":"Vaclav Horak","note":"","groups":["gH"],"x":-414,"y":4},{"id":"karel","name":"Karel Novak","note":"","groups":["gK"],"x":-110,"y":170},{"id":"eva","name":"Eva Novakova","note":"","groups":["gK"],"x":-326,"y":170},{"id":"marie","name":"Marie Svobodova","note":"","groups":["gM"],"x":130,"y":172},{"id":"petr","name":"Petr Svoboda","note":"","groups":["gM","gS"],"x":362,"y":171},{"id":"jan","name":"Jan Novak","note":"","groups":["gK"],"x":-374,"y":339},{"id":"lucie","name":"Lucie Novakova","note":"","groups":["gK"],"x":-160,"y":339},{"id":"tomas","name":"Tomas Svoboda","note":"","groups":["gM","gS"],"x":170,"y":339},{"id":"klara","name":"Klara Svobodova","note":"","groups":["gM","gS"],"x":402,"y":338},{"id":"jl0e9j27","name":"Jiri Novak","note":"","groups":["gH"],"x":-405,"y":-116},{"id":"d5hpn7bi","name":"Alzbeta Novakova","note":"","groups":["gH"],"x":-172,"y":-121}],"groups":[{"id":"gN","name":"Novak","parent":null,"color":5,"lx":483,"ly":-2},{"id":"gH","name":"Horak","parent":null,"color":3},{"id":"gS","name":"Svoboda","parent":null,"color":2,"lx":267,"ly":0,"hull":"organic"},{"id":"gK","name":"Karel's branch","parent":"gN","color":5,"lx":27,"ly":0},{"id":"gM","name":"Marie's branch","parent":"gN","color":5}],"links":[{"id":"l0","a":"josef","b":"karel","type":"tP","label":""},{"id":"l1","a":"josef","b":"marie","type":"tP","label":""},{"id":"l2","a":"anna","b":"karel","type":"tP","label":""},{"id":"l3","a":"anna","b":"marie","type":"tP","label":""},{"id":"l4","a":"karel","b":"jan","type":"tP","label":""},{"id":"l5","a":"karel","b":"lucie","type":"tP","label":""},{"id":"l6","a":"eva","b":"jan","type":"tP","label":""},{"id":"l7","a":"eva","b":"lucie","type":"tP","label":""},{"id":"l8","a":"marie","b":"tomas","type":"tP","label":""},{"id":"l9","a":"marie","b":"klara","type":"tP","label":""},{"id":"l10","a":"petr","b":"tomas","type":"tP","label":""},{"id":"l11","a":"petr","b":"klara","type":"tP","label":""},{"id":"l13","a":"josef","b":"anna","type":"tM","label":""},{"id":"l14","a":"karel","b":"eva","type":"tM","label":""},{"id":"l15","a":"marie","b":"petr","type":"tM","label":""},{"id":"l16","a":"anna","b":"vaclav","type":"tS","label":""},{"id":"l17","a":"karel","b":"marie","type":"tS","label":""},{"id":"l18","a":"jan","b":"lucie","type":"tS","label":""},{"id":"l19","a":"tomas","b":"klara","type":"tS","label":""},{"id":"gzjhbd1y","a":"jl0e9j27","b":"d5hpn7bi","type":"tM","label":""},{"id":"hqo5qobu","a":"jl0e9j27","b":"vaclav","type":"tP","label":""},{"id":"xigmtvy3","a":"jl0e9j27","b":"anna","type":"tP","label":""},{"id":"tee3l4q9","a":"d5hpn7bi","b":"anna","type":"tP","label":""},{"id":"gszpfsac","a":"d5hpn7bi","b":"vaclav","type":"tP","label":""}],"linkTypes":[{"id":"tP","name":"parent of","line":"solid","start":"none","end":"arrow"},{"id":"tM","name":"married to","line":"solid","start":"none","end":"none"},{"id":"tS","name":"siblings","line":"dashed","start":"none","end":"none"}]},"solar":{"name":"Solar system","items":[{"id":"sun","name":"Sun","note":"","groups":["hfqukcs9"],"x":9,"y":-430},{"id":"mercury","name":"Mercury","note":"","groups":["gT"],"x":-445,"y":-215},{"id":"venus","name":"Venus","note":"","groups":["gT"],"x":-373,"y":-179},{"id":"earth","name":"Earth","note":"","groups":["gT"],"x":-309,"y":-140},{"id":"mars","name":"Mars","note":"","groups":["gT"],"x":-223,"y":-132},{"id":"ceres","name":"Ceres","note":"","groups":["gA","gD"],"x":820,"y":-62},{"id":"vesta","name":"Vesta","note":"","groups":["gA"],"x":689,"y":12},{"id":"jupiter","name":"Jupiter","note":"","groups":["gGas"],"x":-65,"y":-130},{"id":"saturn","name":"Saturn","note":"","groups":["gGas"],"x":27,"y":-127},{"id":"uranus","name":"Uranus","note":"","groups":["gIce"],"x":173,"y":-126},{"id":"neptune","name":"Neptune","note":"","groups":["gIce"],"x":272,"y":-127},{"id":"pluto","name":"Pluto","note":"","groups":["gK","gD"],"x":470,"y":-134},{"id":"eris","name":"Eris","note":"","groups":["gK","gD"],"x":793,"y":-204},{"id":"haumea","name":"Haumea","note":"","groups":["gK","gD"],"x":583,"y":-140},{"id":"makemake","name":"Makemake","note":"","groups":["gK","gD"],"x":698,"y":-164},{"id":"moon","name":"Moon","note":"","groups":["gMo"],"x":-301,"y":47},{"id":"phobos","name":"Phobos","note":"","groups":["gMo"],"x":-212,"y":50},{"id":"io","name":"Io","note":"","groups":["gMo"],"x":-84,"y":53},{"id":"europa","name":"Europa","note":"","groups":["gMo"],"x":-12,"y":55},{"id":"ganymede","name":"Ganymede","note":"","groups":["gMo"],"x":-54,"y":97},{"id":"titan","name":"Titan","note":"","groups":["gMo"],"x":81,"y":52},{"id":"triton","name":"Triton","note":"","groups":["gMo"],"x":270,"y":49},{"id":"charon","name":"Charon","note":"","groups":["gMo"],"x":466,"y":47}],"groups":[{"id":"gP","name":"Planets","parent":null,"color":0},{"id":"gT","name":"Terrestrial","parent":"gP","color":3},{"id":"gGi","name":"Giants","parent":"gP","color":1},{"id":"gGas","name":"Gas giants","parent":"gGi","color":5},{"id":"gIce","name":"Ice giants","parent":"gGi","color":6},{"id":"gD","name":"Dwarf planets","parent":null,"color":4,"lx":461,"ly":103},{"id":"gA","name":"Asteroid belt","parent":null,"color":2},{"id":"gK","name":"Kuiper belt","parent":null,"color":7,"lx":225,"ly":-3},{"id":"gMo","name":"Moons","parent":null,"color":8,"lx":-21,"ly":9},{"id":"hfqukcs9","name":"Stars","parent":null,"color":2}],"links":[{"id":"l0","a":"mercury","b":"sun","type":"tO","label":""},{"id":"l1","a":"venus","b":"sun","type":"tO","label":""},{"id":"l2","a":"earth","b":"sun","type":"tO","label":""},{"id":"l3","a":"mars","b":"sun","type":"tO","label":""},{"id":"l4","a":"ceres","b":"sun","type":"tO","label":""},{"id":"l5","a":"vesta","b":"sun","type":"tO","label":""},{"id":"l6","a":"jupiter","b":"sun","type":"tO","label":""},{"id":"l7","a":"saturn","b":"sun","type":"tO","label":""},{"id":"l8","a":"uranus","b":"sun","type":"tO","label":""},{"id":"l9","a":"neptune","b":"sun","type":"tO","label":""},{"id":"l10","a":"pluto","b":"sun","type":"tO","label":""},{"id":"l11","a":"eris","b":"sun","type":"tO","label":""},{"id":"l12","a":"haumea","b":"sun","type":"tO","label":""},{"id":"l13","a":"makemake","b":"sun","type":"tO","label":""},{"id":"l14","a":"moon","b":"earth","type":"tO","label":""},{"id":"l15","a":"phobos","b":"mars","type":"tO","label":""},{"id":"l16","a":"io","b":"jupiter","type":"tO","label":""},{"id":"l17","a":"europa","b":"jupiter","type":"tO","label":""},{"id":"l18","a":"ganymede","b":"jupiter","type":"tO","label":""},{"id":"l19","a":"titan","b":"saturn","type":"tO","label":""},{"id":"l20","a":"triton","b":"neptune","type":"tO","label":""},{"id":"l21","a":"charon","b":"pluto","type":"tO","label":""}],"linkTypes":[{"id":"tO","name":"orbits","line":"solid","start":"none","end":"arrow"}]},"transit":{"name":"City transport","items":[{"id":"airport","name":"Airport","note":"","groups":["gA"],"x":-496,"y":-185},{"id":"harbour","name":"Harbour","note":"","groups":["gA"],"x":-330,"y":-141},{"id":"central","name":"Central Station","note":"","groups":["gA","gB"],"x":-146,"y":-37},{"id":"oldtown","name":"Old Town","note":"","groups":["gA","gT"],"x":-19,"y":-105},{"id":"university","name":"University","note":"","groups":["gA","gBus"],"x":240,"y":-160},{"id":"hillside","name":"Hillside","note":"","groups":["gA"],"x":480,"y":-170},{"id":"riverside","name":"Riverside","note":"","groups":["gB"],"x":-467,"y":33},{"id":"market","name":"Market Square","note":"","groups":["gB","gT"],"x":56,"y":15},{"id":"stadium","name":"Stadium","note":"","groups":["gB","gBus"],"x":264,"y":146},{"id":"techpark","name":"Tech Park","note":"","groups":["gB"],"x":464,"y":281},{"id":"gardens","name":"Botanic Gardens","note":"","groups":["gT","gBus"],"x":258,"y":26},{"id":"a8rjyedc","name":"Projects","note":"","groups":["gT"],"x":634,"y":22},{"id":"ayb3a9hi","name":"Inner City","note":"","groups":["gT"],"x":449,"y":19},{"id":"xgwx8hsh","name":"Mall","note":"","groups":["gBus"],"x":196,"y":295},{"id":"dgqug8hu","name":"South end","note":"","groups":["gBus"],"x":88,"y":387},{"id":"48lyj3iq","name":"North End","note":"","groups":["gBus"],"x":165,"y":-298}],"groups":[{"id":"gA","name":"Metro A","parent":null,"color":0,"lx":21,"ly":-10,"hull":"organic"},{"id":"gB","name":"Metro B","parent":null,"color":1,"lx":22,"ly":113,"hull":"organic"},{"id":"gT","name":"Tram 7","parent":null,"color":4,"lx":223,"ly":-6,"hull":"organic"},{"id":"gBus","name":"Bus 12","parent":null,"color":6,"lx":94,"ly":-5,"hull":"organic"}],"links":[{"id":"l0","a":"airport","b":"harbour","type":"tN","label":""},{"id":"l1","a":"harbour","b":"central","type":"tN","label":""},{"id":"l2","a":"central","b":"oldtown","type":"tN","label":""},{"id":"l3","a":"oldtown","b":"university","type":"tN","label":""},{"id":"l4","a":"university","b":"hillside","type":"tN","label":""},{"id":"l5","a":"riverside","b":"central","type":"tN","label":""},{"id":"l6","a":"central","b":"market","type":"tN","label":""},{"id":"l7","a":"market","b":"stadium","type":"tN","label":""},{"id":"l8","a":"stadium","b":"techpark","type":"tN","label":""},{"id":"l9","a":"oldtown","b":"market","type":"tN","label":""},{"id":"l10","a":"market","b":"gardens","type":"tN","label":""},{"id":"l11","a":"university","b":"gardens","type":"tN","label":""},{"id":"l12","a":"gardens","b":"stadium","type":"tN","label":""},{"id":"mcy8znar","a":"ayb3a9hi","b":"a8rjyedc","type":"tN","label":""},{"id":"mzoudxe8","a":"gardens","b":"ayb3a9hi","type":"tN","label":""},{"id":"p053j89s","a":"xgwx8hsh","b":"stadium","type":"tN","label":""},{"id":"2i3prdyf","a":"dgqug8hu","b":"xgwx8hsh","type":"tN","label":""},{"id":"ryd866n6","a":"48lyj3iq","b":"university","type":"tN","label":""}],"linkTypes":[{"id":"tN","name":"next stop","line":"solid","start":"none","end":"none"}]}};
+function loadSample(key) {
   pushUndo();
-  S = normalize({name: '', items: Object.values(byName), groups: G, linkTypes: T, links: L.map(([a, b, t]) => ({id: uid(), a: byName[a].id, b: byName[b].id, type: T[t].id, label: ''}))});
-  S.view = {x: 0, y: 0, k: 1}; sel = null; align(false);
-});
+  S = normalize(JSON.parse(JSON.stringify(SAMPLES[key])));
+  S.view = {x: innerWidth / 2, y: innerHeight / 2, k: 1}; sel = null; multi.clear();
+  save(); renderAll(); fit();
+}
+$('#samples').addEventListener('click', e => { const k = e.target.closest('[data-sample]')?.dataset.sample; if (k) loadSample(k); });
 
 // ---------- init ----------
 const hadView = !!S.view;
