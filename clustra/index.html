@@ -623,8 +623,8 @@ function renderInspector() {
     insp.hidden = false;
     insp.innerHTML = `<div class="title">${ps.length} items selected</div>
       <div class="lbl">Groups</div>
-      <div class="chips">${orderedGroups().map(g => { const n = ps.filter(p => inGroup(p, g.id)).length; return `<button class="chip${n === ps.length ? ' on' : n ? ' on implied' : ''}" data-act="multiGroup" data-gid="${g.id}" title="${n === ps.length ? 'All are in it — click to remove them all' : `${n} of ${ps.length} are in it — click to add the rest`}"><span class="dot" style="background:${cssColor(g)}"></span>${esc(fullName(g))}${n && n < ps.length ? ` · ${n}/${ps.length}` : ''}</button>`; }).join('') || '<span style="color:var(--muted)">No groups yet — create one on the left.</span>'}</div>
-      <div class="hint">Click a group to add all selected items to it; click again to take them out. Drag any selected item to move the whole selection. Shift-click adds or removes items; drag on empty space to select a box (hold Shift to add to the selection).</div>
+      <div class="chips"><button class="chip newgroup" data-act="newGroupPill" title="Create a new group, or type the name of an existing one, and put all ${ps.length} selected items in it">+ Group</button>${orderedGroups().map(g => { const n = ps.filter(p => inGroup(p, g.id)).length; return `<button class="chip${n === ps.length ? ' on' : n ? ' on implied' : ''}" data-act="multiGroup" data-gid="${g.id}" title="${n === ps.length ? 'All are in it — click to remove them all' : `${n} of ${ps.length} are in it — click to add the rest`}"><span class="dot" style="background:${cssColor(g)}"></span>${esc(fullName(g))}${n && n < ps.length ? ` · ${n}/${ps.length}` : ''}</button>`; }).join('')}</div>
+      <div class="hint">Click + Group to put all selected items in a new group (or type the name of an existing one). Click a group to add all selected items to it; click again to take them out. Drag any selected item to move the whole selection. Shift-click adds or removes items; drag on empty space to select a box (hold Shift to add to the selection).</div>
       <div class="lbl">Selected</div>
       <ul class="list">${ps.map(p => `<li><span class="grow"><a data-act="selItem" data-iid="${p.id}">${esc(p.name)}</a></span><button class="x" title="Remove from selection" data-act="multiDrop" data-iid="${p.id}">×</button></li>`).join('')}</ul>
       <div class="foot"><button data-act="multiClear">Clear selection</button><button class="danger" data-act="multiDelete">Delete ${ps.length} items</button></div>`;
@@ -737,17 +737,18 @@ const acts = {
   },
   newGroupFor: (d, el) => {
     const name = el.value.trim(); if (!name) return renderInspector();
-    const p = getSel(); if (!p || sel.kind !== 'item') return;
-    const existing = S.groups.find(g => g.name.toLowerCase() === name.toLowerCase());
+    const ps = multi.size > 1 ? [...multi].map(item).filter(Boolean) : sel?.kind === 'item' ? [getSel()] : [];
+    if (!ps.length) return;
+    const who = ps.length > 1 ? `${ps.length} items` : ps[0].name, existing = S.groups.find(g => g.name.toLowerCase() === name.toLowerCase());
     mutate(() => {
       const g = existing || (() => {
         const used = new Set(S.groups.map(x => x.color));
         const ng = {id: uid(), name, parent: null, color: PALETTE.findIndex((c, i) => !used.has(i)) >= 0 ? PALETTE.findIndex((c, i) => !used.has(i)) : S.groups.length % PALETTE.length};
         S.groups.push(ng); return ng;
       })();
-      addToGroup(p, g.id);
+      ps.forEach(p => addToGroup(p, g.id));
     });
-    toast(existing ? `Added ${p.name} to the existing group “${existing.name}”` : `Created group “${name}” with ${p.name} in it`);
+    toast(existing ? `Added ${who} to the existing group “${existing.name}”` : `Created group “${name}” with ${who} in it`);
   },
   multiGroup: d => mutate(() => {
     const ps = [...multi].map(item), all = ps.every(p => inGroup(p, d.gid));
