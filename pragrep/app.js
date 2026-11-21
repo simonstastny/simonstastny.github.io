@@ -506,8 +506,8 @@
   // ---- "New here?" / "Jste tu poprvé?" suggestions -------------------------
 
   const SUGGESTIONS = [
-    "padesat", "^milic", "st(i|y)chova", "^v?oticka", "^chod",
-    "pra(z|h)", "kamy", "beran", "jug", "^Na ", "sad",
+    "Padesát", "Milíčov", "st(i|y)chova", "^v?oticka", "^chod",
+    "Pra(z|h)", "Kamý", "Beran", "^Na ", "sad",
     "Vltav", "Botič",
   ];
   const $sugg = document.getElementById("suggestions");
