@@ -28,7 +28,7 @@
       starRemove: "Odebrat z oblíbených",
       removeAria: (p) => `Odebrat ${p} z oblíbených`,
       starredTitle: "Oblíbené",
-      starredEmpty: "Kliknutím na ☆ vedle vyhledávání si sem uložíte vzor.",
+      starredEmpty: "Přidejte vzor kliknutím na ☆ vedle vyhledávání",
       introTitle: "Jste tu poprvé?",
       introText: "Klikněte na vzor a vyzkoušejte ho:",
       langGroup: "Jazyk",
@@ -171,10 +171,14 @@
     16, ["+", extra, ["*", base * 6, ["match", ["get", "rank"], 0, 2.2, 1, 1.8, 2, 1.5, 3, 1.3, 4, 1.0, 5, 0.6, 0.45]]],
   ];
 
+  // A shared link may carry the map view (map=zoom/lat/lng): open right there.
+  const initialView = parseView(new URLSearchParams(location.hash.slice(1)).get("map"));
+
   const map = new maplibregl.Map({
     container: "map",
-    bounds: PRAGUE_BOUNDS,
-    fitBoundsOptions: { padding: 20 },
+    ...(initialView
+      ? { center: initialView.center, zoom: initialView.zoom }
+      : { bounds: PRAGUE_BOUNDS, fitBoundsOptions: { padding: 20 } }),
     maxBounds: [[13.9, 49.8], [15.0, 50.3]],
     attributionControl: { compact: true },
     locale: T.mapLocale,
@@ -296,20 +300,32 @@
       paint: { "text-color": C.label, "text-halo-color": C.halo, "text-halo-width": 2 },
     });
 
-    // Fit the whole city into the part of the screen the panels leave free:
-    // on a phone, between the logo row and the collapsed sheet; on a desktop,
-    // to the right of the panel column.
-    map.fitBounds(PRAGUE_BOUNDS, {
-      padding: isPhone()
-        ? { top: 60, bottom: $sidebar.offsetHeight + 10, left: 10, right: 10 }
-        : { top: 20, bottom: 20, left: $sidebar.getBoundingClientRect().right + 20, right: 20 },
-      animate: false,
-    });
+    readHash();
+    // Without a view in the link, fit the whole city into the part of the
+    // screen the panels leave free: on a phone, between the logo row and the
+    // collapsed sheet; on a desktop, to the right of the panel column.
+    if (!mapView) {
+      map.fitBounds(PRAGUE_BOUNDS, {
+        padding: isPhone()
+          ? { top: 60, bottom: $sidebar.offsetHeight + 10, left: 10, right: 10 }
+          : { top: 20, bottom: 20, left: $sidebar.getBoundingClientRect().right + 20, right: 20 },
+        animate: false,
+      });
+    }
 
     setupHover();
-    readHash();
     applyLabels();
     search();
+
+    // Put the view in the URL whenever the user stops moving the map (drag,
+    // scroll/pinch zoom, zoom buttons all carry originalEvent) or after we
+    // zoomed to search results on their request (userMove). The startup fit
+    // and views restored from a link are left out.
+    map.on("moveend", (e) => {
+      if (!e.originalEvent && !e.userMove) return;
+      mapView = viewString();
+      writeHash($q.value);
+    });
   });
 
   // ---- search -------------------------------------------------------------
@@ -328,6 +344,12 @@
   function search() {
     if (!streets.length) return;
     const pattern = $q.value;
+    // A different search than the last one makes the saved view stale: drop
+    // it from the URL (it comes back once the map is moved again). The first
+    // search after reading the URL keeps the view the link came with.
+    const key = [pattern, $case.checked, $dia.checked].join("\u0000");
+    if (lastSearchKey !== null && key !== lastSearchKey) mapView = null;
+    lastSearchKey = key;
     writeHash(pattern);
     markActiveSuggestion();
 
@@ -415,7 +437,8 @@
       const panelW = document.getElementById("panel").offsetWidth;
       padding = { top: 40, bottom: 40, right: 40, left: panelW + 40 };
     }
-    map.fitBounds([[x0, y0], [x1, y1]], { padding, maxZoom: 17 });
+    // userMove: this was asked for, so moveend saves the new view in the URL.
+    map.fitBounds([[x0, y0], [x1, y1]], { padding, maxZoom: 17 }, { userMove: true });
   }
 
   // ---- phone bottom sheet -------------------------------------------------
@@ -485,15 +508,34 @@
     });
   }
 
-  // ---- URL hash (shareable searches) --------------------------------------
+  // ---- URL hash (shareable searches and map views) ------------------------
+  //
+  // #q=<pattern>&case=1&dia=1&labels=0&map=<zoom>/<lat>/<lng>
+  // map= is written like on openstreetmap.org (slashes left unescaped).
+
+  let mapView = null;        // "zoom/lat/lng" while the URL should carry the view
+  let lastSearchKey = null;  // pattern + options of the last search; null right after reading the URL
+
+  function parseView(s) {
+    const [zoom, lat, lng] = String(s ?? "").split("/").map(Number);
+    return [zoom, lat, lng].every(Number.isFinite) ? { zoom, center: [lng, lat] } : null;
+  }
+  function viewString() {
+    const c = map.getCenter();
+    return `${map.getZoom().toFixed(2)}/${c.lat.toFixed(5)}/${c.lng.toFixed(5)}`;
+  }
 
   function readHash() {
     const p = new URLSearchParams(location.hash.slice(1));
-    if (p.has("q")) $q.value = p.get("q");
-    if (p.has("case")) $case.checked = p.get("case") === "1";
+    $q.value = p.get("q") ?? "";
+    $case.checked = p.get("case") === "1";
     // dia=1: match diacritics. Older links wrote dia=0 ("don't ignore"), same meaning.
     $dia.checked = p.get("dia") === "1" || p.get("dia") === "0";
     $labels.checked = p.get("labels") !== "0";
+    const view = parseView(p.get("map"));
+    mapView = view ? p.get("map") : null;
+    lastSearchKey = null;
+    return view;
   }
   function writeHash(q) {
     const p = new URLSearchParams();
@@ -501,16 +543,17 @@
     if ($case.checked) p.set("case", "1");
     if ($dia.checked) p.set("dia", "1");
     if (!$labels.checked) p.set("labels", "0");
-    const h = p.toString();
+    let h = p.toString();
+    if (mapView) h += (h ? "&" : "") + "map=" + mapView;
     history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
   }
 
   // ---- "New here?" / "Jste tu poprvé?" suggestions -------------------------
 
   const SUGGESTIONS = [
-    "Padesát", "Milíčov", "st(i|y)chova", "^v?oticka", "^chod",
+    "Botič", "Vltav", "Padesát", "Milíčov", "st(i|y)chova", "^v?oticka", "(^| )chod",
     "Pra(z|h)", "Kamý", "Beran", "^Na ", "sad",
-    "Vltav", "Botič",
+    
   ];
   const $sugg = document.getElementById("suggestions");
 
@@ -610,7 +653,13 @@
     if (e.key === "Enter") { clearTimeout(t); search(); }
     if (e.key === "Escape") { $q.value = ""; search(); }
   });
-  addEventListener("hashchange", () => { readHash(); applyLabels(); search(); });
+  // Someone edited or pasted the URL in this tab: apply it, view included.
+  addEventListener("hashchange", () => {
+    const view = readHash();
+    if (view) map.jumpTo(view);
+    applyLabels();
+    search();
+  });
   $labels.addEventListener("change", () => { applyLabels(); writeHash($q.value); });
   $case.addEventListener("change", search);
   $dia.addEventListener("change", search);
