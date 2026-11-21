@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pražské ulice</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Texts are Czech; app.js swaps them for English (keys in its I18N table)
+       when English is chosen with the CS/EN switch. -->
+  <div id="sidebar">
+    <header id="brand">
+      <picture id="logo">
+        <source srcset="assets/logo-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="assets/logo.png" alt="/pragrep/" width="1005" height="223">
+      </picture>
+      <div id="lang" role="group" aria-label="Jazyk" data-i18n-label="langGroup">
+        <button type="button" data-lang="cs" lang="cs" title="Čeština">CS</button>
+        <button type="button" data-lang="en" lang="en" title="English">EN</button>
+      </div>
+    </header>
+
+    <!-- Phones only: the sidebar becomes a bottom sheet; this toggles it. -->
+    <button id="sheet-handle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Rozbalit panel"></button>
+
+    <div id="panel">
+      <div class="search-row">
+        <input id="q" type="search" placeholder="Název ulice nebo regulární výraz, např. ^Na |ova$" data-i18n-placeholder="placeholder" autocomplete="off" spellcheck="false" autofocus>
+        <button id="star" type="button" aria-pressed="false" title="Přidat vzor do oblíbených" disabled>☆</button>
+      </div>
+      <div class="options">
+        <label><input type="checkbox" id="opt-case"> <span data-i18n="matchCase">VELKÁ/malá</span></label>
+        <label><input type="checkbox" id="opt-diacritics"> <span data-i18n="matchDia">Diakritika</span></label>
+        <label><input type="checkbox" id="opt-labels" checked> <span data-i18n="labels">Popisky</span></label>
+      </div>
+      <div id="status" data-i18n="loading">Načítám ulice…</div>
+      <ul id="results"></ul>
+    </div>
+
+    <section id="starred-box" class="box">
+      <h2 data-i18n="starredTitle">Oblíbené</h2>
+      <p id="starred-empty" data-i18n="starredEmpty">Kliknutím na ☆ vedle vyhledávání si uložíte vzor.</p>
+      <div id="starred" class="pills"></div>
+    </section>
+
+    <section id="intro" class="box">
+      <h2 data-i18n="introTitle">Jste tu poprvé?</h2>
+      <p data-i18n="introText">Klikněte na vzor a vyzkoušejte ho:</p>
+      <div id="suggestions" class="pills"></div>
+    </section>
+  </div>
+
+  <div id="tooltip" hidden></div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
