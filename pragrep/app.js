@@ -296,13 +296,15 @@
       paint: { "text-color": C.label, "text-halo-color": C.halo, "text-halo-width": 2 },
     });
 
-    // On a phone, fit the city between the logo row and the collapsed sheet.
-    if (isPhone()) {
-      map.fitBounds(PRAGUE_BOUNDS, {
-        padding: { top: 60, bottom: $sidebar.offsetHeight + 10, left: 10, right: 10 },
-        animate: false,
-      });
-    }
+    // Fit the whole city into the part of the screen the panels leave free:
+    // on a phone, between the logo row and the collapsed sheet; on a desktop,
+    // to the right of the panel column.
+    map.fitBounds(PRAGUE_BOUNDS, {
+      padding: isPhone()
+        ? { top: 60, bottom: $sidebar.offsetHeight + 10, left: 10, right: 10 }
+        : { top: 20, bottom: 20, left: $sidebar.getBoundingClientRect().right + 20, right: 20 },
+      animate: false,
+    });
 
     setupHover();
     readHash();
