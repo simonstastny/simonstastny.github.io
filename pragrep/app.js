@@ -13,8 +13,8 @@
     cs: {
       title: "Pražské ulice",
       placeholder: "Název ulice nebo regulární výraz, např. ^Na |ova$",
-      matchCase: "Rozlišovat velká/malá",
-      matchDia: "Rozlišovat diakritiku",
+      matchCase: "VELKÁ/malá",
+      matchDia: "Diakritika",
       labels: "Popisky",
       loading: "Načítám ulice…",
       loadFailed: (msg) => `Nepodařilo se načíst data ulic (${msg}). Nejdřív spusťte scripts/fetch_streets.py.`,
