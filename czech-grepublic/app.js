@@ -768,8 +768,11 @@
   // e.g. ["^Horní ", "^Dolní "]. Order matters: only the first three rows of
   // pills show until "+ ukázat více".
   const SUGGESTIONS = [
-    "^Lhota", "Lhot(a|ka)$", ßßßß"^Nádražní$", ["^Horní ", "^Dolní "], "Masaryk",
+    "^Lhota", "Lhot(a|ka)$", "^Nádražní$", ["^Horní ", "^Dolní "], "Masaryk",
     "^.{1,3}$", "ves$", "^Nová ", "Hrad", "(^| )Kocour", "ice$",
+    ["^Star[áýé]", "^Nov[áýé]", "^Mlad[áýé]"], ["štejn$", "hrad$"],
+    ["Labská", "Vltavská"], ["Dvořák", "Smetan"], ["janacka|janackova", "Martinů"],
+    ["newtonova", "einsteinova"],
   ];
   const $sugg = document.getElementById("suggestions");
 
