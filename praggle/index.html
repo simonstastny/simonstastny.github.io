@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Praggle – spojte pražské čtvrti</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Texts are Czech; app.js swaps them for English (keys in its I18N table). -->
+  <div id="sidebar">
+    <header id="brand">
+      <!-- The logo's letters are coloured like a finished route; the dark
+           variant only lightens the grey "p", "l" and "e". -->
+      <picture id="logo">
+        <source srcset="assets/logo-dark.svg" media="(prefers-color-scheme: dark)">
+        <img src="assets/logo.svg" alt="praggle" width="1710" height="560">
+      </picture>
+      <div id="lang" role="group" aria-label="Jazyk" data-i18n-label="langGroup">
+        <button type="button" data-lang="cs" lang="cs" title="Čeština">CS</button>
+        <button type="button" data-lang="en" lang="en" title="English">EN</button>
+      </div>
+    </header>
+
+    <div id="panel">
+      <!-- Which districts to play with; changing it starts a new game. -->
+      <div class="set-row">
+        <div id="set" class="seg" role="radiogroup" aria-label="Čtvrti" data-i18n-label="setGroup">
+          <label><input type="radio" name="set" value="ku" checked><span data-i18n="setKu">Katastrální území</span></label>
+          <label><input type="radio" name="set" value="mc"><span data-i18n="setMc">Městské části</span></label>
+        </div>
+        <button id="new-game" type="button" class="icon-btn" title="Nová hra" aria-label="Nová hra" data-i18n-title="newGame" data-i18n-label="newGame">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+        </button>
+      </div>
+
+      <!-- Start → end, the task and the clock. -->
+      <div class="route">
+        <div class="route-main">
+          <div class="pair">
+            <span id="from" class="chip c-se">…</span>
+            <svg class="arrow" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            <span id="to" class="chip c-se">…</span>
+          </div>
+          <div id="task" class="muted" data-i18n="loading">Načítám…</div>
+        </div>
+        <div class="clock" role="timer" aria-label="Čas" data-i18n-label="timeLabel">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/></svg>
+          <span id="time">0:00</span>
+        </div>
+      </div>
+
+      <!-- While playing: the guess box (with suggestions), attempts and hint. -->
+      <div id="play">
+        <div class="guess-box">
+          <div class="guess-row">
+            <input id="guess" type="text" placeholder="Napište čtvrť…" data-i18n-placeholder="placeholder"
+                   autocomplete="off" spellcheck="false" autocapitalize="words" enterkeyhint="go"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest" aria-label="Čtvrť" data-i18n-label="guessLabel">
+            <span class="kbd" aria-hidden="true">Enter</span>
+          </div>
+          <ul id="suggest" role="listbox" hidden></ul>
+        </div>
+        <div id="msg" class="msg" role="status" aria-live="polite"></div>
+        <div class="meta">
+          <span id="attempts" class="muted"></span>
+          <div id="bar" aria-hidden="true"></div>
+          <button id="hint" type="button" class="hint-btn">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>
+            <span data-i18n="hint">Nápověda</span> <span class="muted">+1</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- When finished (or out of attempts): score, time, the path, new game. -->
+      <div id="result" hidden>
+        <div class="score-card">
+          <div id="result-head" class="muted"></div>
+          <div id="score" class="score"></div>
+          <div id="score-desc" class="muted"></div>
+          <div class="stats">
+            <div><span id="stat-time" class="num"></span><span class="muted" data-i18n="statTime">čas</span></div>
+            <div><span id="stat-guesses" class="num"></span><span id="stat-guesses-l" class="muted"></span></div>
+            <div><span id="stat-hints" class="num"></span><span id="stat-hints-l" class="muted"></span></div>
+          </div>
+        </div>
+        <div class="path-box">
+          <div id="path-head" class="caps muted"></div>
+          <div id="path" class="path"></div>
+          <div id="path-note" class="muted"></div>
+        </div>
+        <button id="again" type="button" class="primary" data-i18n="newGame">Nová hra</button>
+      </div>
+
+      <ol id="guesses" aria-label="Pokusy" data-i18n-label="guessesLabel"></ol>
+    </div>
+
+    <section id="how" class="box">
+      <h2 data-i18n="howTitle">Jak hrát</h2>
+      <p data-i18n="howText">Hádejte čtvrti, které spojí start s cílem. Každý pokus se obarví podle toho, jestli leží na nejkratší cestě; v seznamu uvidíte, o kolik je případná zajížďka delší. Hra končí, jakmile vede souvislá cesta od startu do cíle.</p>
+      <div class="legend">
+        <span><i class="dot c-0"></i><span data-i18n="legRoute">na nejkratší cestě</span></span>
+        <span><i class="dot c-1"></i><span data-i18n="legExtra">zajížďka</span></span>
+        <span><i class="dot c-se"></i><span data-i18n="legEnds">start a cíl</span></span>
+      </div>
+      <p id="how-score"></p>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

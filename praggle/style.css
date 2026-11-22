@@ -1,0 +1,215 @@
+:root {
+  color-scheme: light dark;
+  --bg: #F7F6F2;        /* map base */
+  --panel: rgba(255, 255, 255, 0.96);
+  --panel-solid: #ffffff;
+  --text: #303A43;
+  --muted: #6b6f76;
+  --border: #d9d8d4;
+  --soft: #f4f2ee;
+  --accent: #e4572e;
+  --error: #c62828;
+  /* Path colours: a pastel fill with a slightly deeper outline of the same hue.
+     Inactive = start and end, visited = on a shortest route, extra stop = any
+     detour (the list still says how far). Keep in sync with PATH in app.js. */
+  --se: #BFC5CE;  --se-line: #8a929e;   /* inactive: start / end */
+  --d0: #B6DCCA;  --d0-line: #6fb394;   /* visited: on a shortest route */
+  --d1: #F3D69A;  --d1-line: #d4ad55;   /* extra stop */
+  --d2: var(--d1); --d2-line: var(--d1-line);
+  --d3: var(--d1); --d3-line: var(--d1-line);
+  --on-pastel: #303A43;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15161a;
+    --panel: rgba(30, 31, 36, 0.96);
+    --panel-solid: #1e1f24;
+    --text: #ececef;
+    --muted: #9a9aa2;
+    --border: #3a3b42;
+    --soft: #27282e;
+    --accent: #ff7a50;
+    --error: #ff6b6b;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+#map { position: absolute; inset: 0; }
+.muted { color: var(--muted); }
+[hidden] { display: none !important; }
+
+/* Logo, game panel and "Jak hrát", stacked on the left. */
+#sidebar {
+  position: absolute; top: 12px; left: 12px; z-index: 2;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  display: flex; flex-direction: column; gap: 10px;
+  pointer-events: none;
+}
+#panel, .box {
+  pointer-events: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  padding: 10px;
+}
+#panel { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 0 1 auto; }
+
+#brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
+/* assets/logo.svg (assets/logo-dark.svg in dark mode), sized by its width. */
+#logo { display: block; margin: 0 2px; flex: 0 1 auto; min-width: 0; }
+#logo img { display: block; width: 150px; max-width: 100%; height: auto; }
+#lang {
+  pointer-events: auto; display: flex; flex: none;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 2px;
+}
+#lang button {
+  padding: 2px 8px; border: 0; border-radius: 999px; background: none; cursor: pointer;
+  color: var(--muted); font: 600 11px/1.4 system-ui, sans-serif; letter-spacing: 0.04em;
+}
+#lang button:hover { color: var(--text); }
+#lang button[aria-pressed="true"] { background: var(--accent); color: #fff; cursor: default; }
+
+/* Katastrální území | Městské části, and the new-game button. */
+.set-row { display: flex; align-items: center; gap: 6px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; font-size: 13px; }
+.seg label { position: relative; cursor: pointer; user-select: none; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 999px; color: var(--muted); }
+.seg label:hover span { color: var(--text); }
+.seg input:checked + span { background: var(--accent); color: #fff; }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+.icon-btn {
+  margin-left: auto; flex: none; width: 30px; height: 30px; padding: 0; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--muted); }
+svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Start → end chips, the task line and the clock. */
+.route { display: flex; align-items: flex-start; gap: 10px; padding: 2px 2px 0; }
+.route-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pair { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.arrow { color: var(--muted); flex: none; }
+#task { font-size: 13px; }
+.clock { flex: none; display: flex; align-items: center; gap: 5px; font: 600 22px/1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.clock svg { color: var(--muted); }
+
+/* Pastel chips, dots and bar segments, outlined in the full colour. */
+.chip { padding: 3px 9px; border-radius: 6px; font-weight: 700; color: var(--on-pastel); }
+.c-se { --f: var(--se); --l: var(--se-line); }
+.c-0 { --f: var(--d0); --l: var(--d0-line); }
+.c-1 { --f: var(--d1); --l: var(--d1-line); }
+.c-2 { --f: var(--d2); --l: var(--d2-line); }
+.c-3 { --f: var(--d3); --l: var(--d3-line); }
+.chip, .dot, #bar i { background: var(--f); box-shadow: inset 0 0 0 1px var(--l); }
+.dot { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; }
+
+/* The guess box: one bordered row like pragrep's search row, with suggestions below. */
+.guess-box { position: relative; }
+.guess-row {
+  display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.guess-row:focus-within { border-color: var(--accent); }
+.guess-row.bad { border-color: var(--error); animation: shake 0.3s; }
+@keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+#guess {
+  flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent;
+  color: var(--text); font: 14px ui-monospace, Menlo, monospace;
+}
+#guess:disabled { cursor: not-allowed; }
+.kbd { font-size: 12px; color: var(--muted); }
+#suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5;
+  list-style: none; margin: 0; padding: 4px;
+  background: var(--panel-solid); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+#suggest li { padding: 7px 8px; border-radius: 5px; cursor: pointer; }
+#suggest li[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+#suggest b { color: var(--accent); font-weight: 700; }
+.msg { min-height: 0; margin: -4px 2px 0; font-size: 13px; color: var(--error); }
+.msg:empty { display: none; }
+
+/* Attempts, the attempt bar and the hint button. */
+.meta { display: flex; align-items: center; gap: 8px; margin: 0 2px; font-size: 13px; }
+#attempts { white-space: nowrap; }
+#attempts b { color: var(--text); font-weight: 600; }
+/* One segment per allowed guess; they shrink when there are many. */
+#bar { flex: 0 1 auto; min-width: 0; display: flex; gap: 3px; }
+#bar i { flex: 0 1 12px; min-width: 4px; height: 6px; border-radius: 3px; }
+#bar i:not([class]) { --f: var(--soft); --l: var(--border); } /* unused; used ones have a c-* colour */
+.hint-btn {
+  margin-left: auto; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text);
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.hint-btn svg { color: var(--accent); }
+.hint-btn:hover:not(:disabled) { border-color: var(--accent); }
+.hint-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* The guess list. */
+#guesses { list-style: none; margin: 0; padding: 8px 0 0; border-top: 1px solid var(--border); overflow-y: auto; min-height: 0; }
+#guesses:empty { display: none; }
+#guesses li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
+#guesses .n { width: 18px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#guesses .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#guesses .det { font-size: 12px; color: var(--muted); }
+
+/* Result: score card, path, new game. */
+#result { display: flex; flex-direction: column; gap: 12px; }
+.score-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 8px 12px; border-radius: 8px; background: var(--soft); text-align: center; }
+.score-card > .muted { font-size: 13px; }
+.score { font: 700 52px/1 ui-monospace, Menlo, monospace; }
+.stats { display: flex; gap: 18px; margin-top: 10px; }
+.stats > div { display: flex; flex-direction: column; align-items: center; }
+.stats .num { font: 600 20px/1.1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.stats .muted { font-size: 12px; }
+.path-box { display: flex; flex-direction: column; gap: 6px; margin: 0 2px; font-size: 13px; }
+.caps { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.path { display: flex; align-items: center; gap: 4px 5px; flex-wrap: wrap; }
+.path .chip { padding: 2px 7px; border-radius: 5px; font-weight: 600; }
+.path .to { color: var(--muted); }
+.primary {
+  height: 40px; border: 0; border-radius: 8px; background: var(--accent); color: #fff;
+  font: 600 15px/1 system-ui, sans-serif; cursor: pointer;
+}
+.primary:hover { filter: brightness(1.05); }
+
+/* "Jak hrát" box. */
+.box { flex: none; }
+.box h2 { margin: 0 2px; font-size: 14px; font-weight: 600; }
+.box p { margin: 6px 2px 8px; color: var(--muted); font-size: 13px; }
+.box p b { color: var(--text); }
+.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; margin: 0 2px; font-size: 13px; }
+.legend > span { display: flex; align-items: center; gap: 6px; }
+#how-score { margin-top: 10px; }
+
+/* ---- Phones: the panel becomes a bottom sheet; logo and language stay on top. */
+@media (max-width: 640px) {
+  #sidebar {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto;
+    max-height: 62vh; max-height: 62dvh;
+    gap: 0; pointer-events: auto;
+    overflow-y: auto; overscroll-behavior: contain;
+    padding: 12px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--panel-solid);
+    border: 1px solid var(--border); border-bottom: 0; border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.15);
+  }
+  #brand { position: fixed; top: 10px; left: 10px; right: 58px; pointer-events: none; }
+  #logo img { width: 110px; }
+  #panel, .box { background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0 0 10px; }
+  .box { border-top: 1px solid var(--border); padding-top: 10px; }
+  .guess-row { height: 44px; }
+  #guess { font-size: 16px; } /* below 16px, iOS Safari zooms the page on focus */
+  .hint-btn { height: 36px; padding: 0 12px; }
+  /* The keyboard covers the bottom of the screen: suggestions open upwards. */
+  #suggest { top: auto; bottom: calc(100% + 4px); }
+  #guesses { overflow: visible; }
+  #guesses li { padding: 6px; }
+  .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { bottom: var(--sheet-h, 0px); }
+}
