@@ -36,10 +36,16 @@
     <button id="sheet-handle" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Rozbalit panel"></button>
 
     <div id="panel">
-      <div class="search-row">
-        <input id="q" type="search" placeholder="Ulice nebo obec, třeba i regulární výraz, např. ^Lhota" data-i18n-placeholder="placeholder" autocomplete="off" spellcheck="false" autofocus>
-        <button id="star" type="button" aria-pressed="false" title="Přidat vzor do oblíbených" disabled>☆</button>
+      <!-- Search groups: one row per pattern, each highlighted in its own colour
+           on the map. app.js renders the rows; this first one is the default. -->
+      <div id="groups">
+        <div class="search-row">
+          <span class="gdot" aria-hidden="true"></span>
+          <input class="q" type="search" placeholder="Ulice nebo obec, třeba i regulární výraz, např. ^Lhota" data-i18n-placeholder="placeholder" autocomplete="off" spellcheck="false" autofocus>
+          <button id="star" type="button" aria-pressed="false" title="Přidat vzor do oblíbených" disabled>☆</button>
+        </div>
       </div>
+      <button id="add-group" type="button" class="add-group" data-i18n="addGroup">+ Přidat skupinu k porovnání</button>
       <!-- What to search: both kinds, only streets, or only municipalities. -->
       <div id="scope" class="scope" role="radiogroup" aria-label="Hledat" data-i18n-label="scopeGroup">
         <label><input type="radio" name="scope" value="s"><span data-i18n="scopeStreets">Ulice</span></label>
@@ -65,6 +71,8 @@
       <h2 data-i18n="introTitle">Jste tu poprvé?</h2>
       <p data-i18n="introText">Klikněte na vzor a vyzkoušejte ho:</p>
       <div id="suggestions" class="pills"></div>
+      <!-- Only the first three rows of pills show until this is clicked (app.js). -->
+      <button id="sugg-more" type="button" class="more-toggle" hidden>+ ukázat více</button>
     </section>
   </div>
 

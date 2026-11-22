@@ -29,6 +29,15 @@ does).
 - **Ulice | Obojí | Obce** (Streets | Both | Municipalities) under the search
   box chooses what to search; both by default. It's kept in the URL as
   `in=s` or `in=m`.
+- **Comparing groups**: **+ Přidat skupinu k porovnání** adds another search
+  row (up to 5), each in its own colour (orange, cyan, green, purple, pink):
+  its streets, municipality areas and name tags on the map, its counts, and
+  its section of the result list. A street or municipality matching several
+  groups takes the first group's colour. The URL repeats `q` per group; ☆ saves
+  the whole comparison.
+- **Jste tu poprvé?** shows the first three rows of suggestions, then
+  **+ ukázat více**. In `SUGGESTIONS` (app.js) a comparison is an array of
+  patterns, e.g. `["^Horní ", "^Dolní "]`.
 - **Diakritika / Match diacritics** and **VELKÁ/malá / Match case**: both off
   by default, so `nadrazni` finds *Nádražní*.
 - **Popisky / Labels**, **☆ starred patterns**, **Jste tu poprvé?** suggestions,
