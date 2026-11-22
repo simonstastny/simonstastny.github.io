@@ -9,18 +9,34 @@
   // ---- language (Czech first, English second) -----------------------------
 
   const PLURAL = (lang, n, forms) => forms[new Intl.PluralRules(lang).select(n)] ?? forms.other;
+  // "a, b a c" / "a, b and c"
+  const joinList = (parts, and) => parts.length > 1 ? parts.slice(0, -1).join(", ") + and + parts.at(-1) : parts[0] ?? "";
+  const CS_FORMS = {
+    s: { one: "ulice", few: "ulice", other: "ulic" },
+    a: { one: "čtvrť", few: "čtvrti", other: "čtvrtí" },
+    t: { one: "zastávka", few: "zastávky", other: "zastávek" },
+  };
+  const EN_FORMS = { s: ["street", "streets"], a: ["area", "areas"], t: ["stop", "stops"] };
   const I18N = {
     cs: {
       title: "Pražské ulice",
-      placeholder: "Název ulice nebo regulární výraz, např. ^Na |ova$",
+      placeholder: "Ulice, čtvrť nebo zastávka, např. ^Na |ova$",
       matchCase: "Rozlišovat VELKÁ/malá",
       matchDia: "Rozlišovat diakritiku",
-      loading: "Načítám ulice…",
-      loadFailed: (msg) => `Nepodařilo se načíst data ulic (${msg}). Nejdřív spusťte scripts/fetch_streets.py.`,
-      idle: (n, s) => `${s} ${PLURAL("cs", n, { one: "ulice", few: "ulice", other: "ulic" })}. Napište název nebo regulární výraz.`,
-      noMatch: "Žádná ulice neodpovídá.",
-      matches: (n, s) => `${s} ${PLURAL("cs", n, { one: "odpovídající ulice", few: "odpovídající ulice", other: "odpovídajících ulic" })}`,
-      count: (n, s) => `${s} ${PLURAL("cs", n, { one: "ulice", few: "ulice", other: "ulic" })}`,
+      loading: "Načítám data…",
+      loadFailed: (msg) => `Nepodařilo se načíst data (${msg}). Nejdřív spusťte scripts/fetch_streets.py a scripts/fetch_places.py.`,
+      idle: (counts) => `${counts}. Napište název nebo regulární výraz.`,
+      noMatch: "Nic neodpovídá.",
+      // counts = { s: streets, a: areas, t: stops }; kinds with 0 are left out
+      matches: (c) => joinList(["s", "a", "t"].filter((k) => c[k]).map((k) => `${fmt(c[k])} ${PLURAL("cs", c[k], CS_FORMS[k])}`), " a "),
+      scopeGroup: "Hledat",
+      scopeAll: "Vše",
+      scopeStreets: "Ulice",
+      scopeAreas: "Čtvrti",
+      scopeStops: "Zastávky",
+      heads: { s: "Ulice", a: "Čtvrti", t: "Zastávky" },
+      areaKind: { mc: "městská část", ku: "katastrální území", ct: "čtvrť" },
+      modes: { metro: "metro", train: "vlak", tram: "tramvaj", bus: "autobus", funicular: "lanovka", ferry: "přívoz" },
       addGroup: "Přidat skupinu",
       removeGroup: "Odebrat skupinu",
       placeholderMore: "Další skupina, např. dolní",
@@ -51,15 +67,22 @@
     },
     en: {
       title: "Prague Streets",
-      placeholder: "Street name or regex, e.g. ^Na |ova$",
+      placeholder: "Street, area or stop, e.g. ^Na |ova$",
       matchCase: "Match case",
       matchDia: "Match diacritics",
-      loading: "Loading streets…",
-      loadFailed: (msg) => `Failed to load street data (${msg}). Run scripts/fetch_streets.py first.`,
-      idle: (n, s) => `${s} streets. Type a name or a regular expression.`,
-      noMatch: "No matching streets.",
-      matches: (n, s) => `${s} matching street${n === 1 ? "" : "s"}`,
-      count: (n, s) => `${s} street${n === 1 ? "" : "s"}`,
+      loading: "Loading data…",
+      loadFailed: (msg) => `Failed to load the data (${msg}). Run scripts/fetch_streets.py and scripts/fetch_places.py first.`,
+      idle: (counts) => `${counts}. Type a name or a regular expression.`,
+      noMatch: "Nothing matches.",
+      matches: (c) => joinList(["s", "a", "t"].filter((k) => c[k]).map((k) => `${fmt(c[k])} ${EN_FORMS[k][c[k] === 1 ? 0 : 1]}`), " and "),
+      scopeGroup: "Search in",
+      scopeAll: "All",
+      scopeStreets: "Streets",
+      scopeAreas: "Areas",
+      scopeStops: "Stops",
+      heads: { s: "Streets", a: "Areas", t: "Stops" },
+      areaKind: { mc: "city district", ku: "cadastral area", ct: "neighbourhood" },
+      modes: { metro: "metro", train: "train", tram: "tram", bus: "bus", funicular: "funicular", ferry: "ferry" },
       addGroup: "Add a group",
       removeGroup: "Remove group",
       placeholderMore: "Another group, e.g. dolní",
@@ -137,6 +160,11 @@
   const $star = Object.assign(document.createElement("button"), { id: "star", type: "button" });
   const $case = document.getElementById("opt-case");
   const $dia = document.getElementById("opt-diacritics");
+  // What to search: everything ("all"), or only streets (s), areas (a) or stops (t).
+  const $scope = document.getElementById("scope");
+  const getScope = () => $scope.querySelector("input:checked").value;
+  const setScope = (v) => { for (const r of $scope.querySelectorAll("input")) r.checked = r.value === v; };
+  const inScope = (k) => getScope() === "all" || getScope() === k;
   const $status = document.getElementById("status");
   const $results = document.getElementById("results");
   const $tip = document.getElementById("tooltip");
@@ -201,6 +229,10 @@
     16, ["+", extra, ["*", base * 6, ["match", ["get", "rank"], 0, 2.2, 1, 1.8, 2, 1.5, 3, 1.3, 4, 1.0, 5, 0.6, 0.45]]],
   ];
 
+  // Filters on the "i" (index) of areas and stops.
+  const NONE = ["==", ["get", "i"], -1];
+  const idFilter = (ids) => ids.length ? ["match", ["get", "i"], ids, true, false] : NONE;
+
   // A shared link may carry the map view (map=zoom/lat/lng): open right there.
   const initialView = parseView(new URLSearchParams(location.hash.slice(1)).get("map"));
 
@@ -222,13 +254,29 @@
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
   let streets = [];          // [{ name, folded, bbox }]
+  let areas = [];            // [{ i, name, folded, bbox, k, lx, ly }]: parts of town (data/areas.geojson)
+  let stops = [];            // [{ i, name, folded, bbox, m, lx, ly }]: public transport stops (data/stops.geojson)
   let currentMatches = [];   // names currently highlighted
 
+  const getJSON = (url) => fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+    return r.json();
+  });
+
   map.on("load", async () => {
-    const data = await fetch("data/streets.geojson").then((r) => {
-      if (!r.ok) throw new Error(`data/streets.geojson: HTTP ${r.status}`);
-      return r.json();
-    }).catch((e) => { setStatus(esc(T.loadFailed(e.message)), true); throw e; });
+    let data, areaData, stopData;
+    try {
+      [data, areaData, stopData] = await Promise.all(
+        ["data/streets.geojson", "data/areas.geojson", "data/stops.geojson"].map(getJSON));
+    } catch (e) { setStatus(esc(T.loadFailed(e.message)), true); throw e; }
+    // Areas and stops are found by their index "i" in the file.
+    const indexed = (fc, extra) => fc.features.map((f, i) => {
+      f.properties.i = i;
+      const p = f.properties;
+      return { i, name: p.name, folded: stripDia(p.name), bbox: p.bbox, lx: p.lx, ly: p.ly, ...extra(p) };
+    }).sort((a, b) => a.name.localeCompare(b.name, "cs"));
+    areas = indexed(areaData, (p) => ({ k: p.k }));
+    stops = indexed(stopData, (p) => ({ m: p.m }));
 
     const tagPoints = []; // one point per street, for the zoomed-out name tags
     for (const f of data.features) {
@@ -256,12 +304,24 @@
       attribution: T.attribution,
     });
 
+    // Matching parts of town: a light tint under the roads, an outline over them.
+    map.addSource("areas", { type: "geojson", data: areaData });
+    map.addLayer({
+      id: "area-fill", type: "fill", source: "areas", filter: NONE,
+      paint: { "fill-color": C.hit, "fill-opacity": 0.12 },
+    });
+
     // Draw less important roads first so major ones sit on top.
     const sortKey = ["-", 10, ["get", "rank"]];
     map.addLayer({
       id: "roads", type: "line", source: "streets",
       layout: { "line-cap": "round", "line-join": "round", "line-sort-key": sortKey },
       paint: { "line-color": C.road, "line-width": width(1) },
+    });
+    map.addLayer({
+      id: "area-line", type: "line", source: "areas", filter: NONE,
+      layout: { "line-join": "round" },
+      paint: { "line-color": C.hit, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 15, 3], "line-opacity": 0.85 },
     });
     map.addLayer({
       id: "hits-casing", type: "line", source: "streets",
@@ -328,6 +388,48 @@
           ["literal", ["bottom-left", [0.3, -0.2], "top-right", [-0.3, 0.2]]]],
       },
       paint: { "text-color": C.label, "text-halo-color": C.halo, "text-halo-width": 2 },
+    });
+
+    // Matching stops (every platform) and neighbourhoods that are only a point: dots.
+    map.addSource("stops", { type: "geojson", data: stopData });
+    const dot = (id, source, filter) => map.addLayer({
+      id, type: "circle", source, filter,
+      paint: {
+        "circle-color": C.hit, "circle-stroke-color": C.halo, "circle-stroke-width": 1.5,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 3, 15, 5.5],
+      },
+    });
+    dot("stop-dots", "stops", NONE);
+    dot("area-dots", "areas", NONE);
+    // Name tags of matching areas and stops at every zoom, each in its group's
+    // colour ("c"); search() fills this source. Added after the street tags,
+    // so these (usually fewer) win when they overlap; area names win over stops.
+    map.addSource("place-tags", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({
+      id: "stop-tags", type: "symbol", source: "place-tags",
+      filter: ["==", ["get", "k"], "t"],
+      layout: {
+        "symbol-sort-key": ["get", "o"],
+        "text-field": ["get", "n"],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 11, 15, 13],
+        "text-padding": 2,
+        "text-variable-anchor": ["left", "right", "top", "bottom"],
+        "text-radial-offset": 0.7,
+      },
+      paint: { "text-color": ["get", "c"], "text-halo-color": C.halo, "text-halo-width": 2 },
+    });
+    map.addLayer({
+      id: "area-tags", type: "symbol", source: "place-tags",
+      filter: ["==", ["get", "k"], "a"],
+      layout: {
+        "symbol-sort-key": ["get", "o"],
+        "text-field": ["get", "n"],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 12, 15, 15],
+        "text-padding": 3,
+      },
+      paint: { "text-color": ["get", "c"], "text-halo-color": C.halo, "text-halo-width": 2 },
     });
 
     readHash();
@@ -410,7 +512,8 @@
     // A different search than the last one makes the saved view stale: drop
     // it from the URL (it comes back once the map is moved again). The first
     // search after reading the URL keeps the view the link came with.
-    const key = [...pats, $case.checked, $dia.checked].join("\u0000");
+    const scope = getScope();
+    const key = [...pats, $case.checked, $dia.checked, scope].join("\u0000");
     if (lastSearchKey !== null && key !== lastSearchKey) mapView = null;
     lastSearchKey = key;
     writeHash();
@@ -418,7 +521,7 @@
 
     const ignoreDia = !$dia.checked;
     const inputs = groupInputs();
-    const groups = [];   // [{ i, p, re, hits }] for every non-empty, valid row
+    const groups = [];   // [{ i, p, re, s, a, t }] (matching streets, areas, stops) for every non-empty, valid row
     let error = null;
     pats.forEach((p, i) => {
       inputs[i].classList.remove("invalid");
@@ -433,44 +536,70 @@
           T.invalid + e.message.replace(/^Invalid regular expression: /, "");
         return;
       }
-      groups.push({ i, p, re, hits: streets.filter((s) => re.test(ignoreDia ? s.folded : s.name)) });
+      const test = (x) => re.test(ignoreDia ? x.folded : x.name);
+      groups.push({
+        i, p, re,
+        s: inScope("s") ? streets.filter(test) : [],
+        a: inScope("a") ? areas.filter(test) : [],
+        t: inScope("t") ? stops.filter(test) : [],
+      });
     });
     applyMatches(groups);
-    const all = [...new Set(groups.flatMap((g) => g.hits))];
-    // Each row shows its own number of matches; empty or invalid rows show nothing.
+    const counts = (g) => ({ s: g.s.length, a: g.a.length, t: g.t.length });
+    const union = (k) => [...new Set(groups.flatMap((g) => g[k]))];
+    const all = { s: union("s"), a: union("a"), t: union("t") };
+    const allList = [...all.s, ...all.a, ...all.t];
+    // Each row shows its own number of matches (hover: per kind); empty or invalid rows show nothing.
     const rows = [...$groups.querySelectorAll(".search-row")];
     rows.forEach((row) => { const c = row.querySelector(".gcount"); c.textContent = ""; c.removeAttribute("title"); });
     for (const g of groups) {
       const c = rows[g.i].querySelector(".gcount");
-      c.textContent = fmt(g.hits.length);
-      c.title = T.count(g.hits.length, fmt(g.hits.length));
+      c.textContent = fmt(g.s.length + g.a.length + g.t.length);
+      c.title = T.matches(counts(g)) || T.noMatch;
     }
 
     if (error) {
       setStatus(esc(error), true);
     } else if (!groups.length) {
-      setStatus(esc(T.idle(streets.length, fmt(streets.length))));
-    } else if (!all.length) {
+      setStatus(esc(T.idle(T.matches({
+        s: inScope("s") ? streets.length : 0, a: inScope("a") ? areas.length : 0, t: inScope("t") ? stops.length : 0,
+      }))));
+    } else if (!allList.length) {
       setStatus(esc(T.noMatch));
     } else {
-      // "N odpovídajících ulic · zobrazit vše · uložit ☆"; each group's own count is in its row.
-      setStatus(esc(T.matches(all.length, fmt(all.length))) +
-        SEP + `<button id="zoom-all" type="button">${esc(T.zoomAll)}</button>` + SEP);
-      $status.append($star);
-      document.getElementById("zoom-all").addEventListener("click", () => zoomTo(all));
+      // "12 ulic a 3 zastávky · zobrazit vše · uložit ☆"; each group's own count is in its row.
+      setStatus(esc(T.matches({ s: all.s.length, a: all.a.length, t: all.t.length })) +
+        `<span class="nw">${SEP}<button id="zoom-all" type="button">${esc(T.zoomAll)}</button></span>` +
+        `<span class="nw" id="star-slot">${SEP}</span>`);
+      document.getElementById("star-slot").append($star);
+      document.getElementById("zoom-all").addEventListener("click", () => zoomTo(allList));
     }
 
+    // Result list: per group (a heading with its count when there are several),
+    // then per kind (Ulice / Čtvrti / Zastávky headings only when searching all).
     listed = [];
     const items = [];
+    const where = {
+      s: () => "",
+      a: (x) => T.areaKind[x.k],
+      t: (x) => x.m.split(",").map((m) => T.modes[m] ?? m).join(", "),
+    };
     for (const g of groups) {
       const colour = GROUP_COLORS[g.i].line;
       if (groups.length > 1)
-        items.push(`<li class="head" style="--g:${colour}"><i class="gdot"></i>${pillText(g.p)} <span>${fmt(g.hits.length)}</span></li>`);
-      for (const s of g.hits.slice(0, MAX_LIST)) {
-        listed.push(s);
-        items.push(`<li data-i="${listed.length - 1}" title="${esc(s.name)}" style="--g:${colour}">${highlight(s.name, g.re, ignoreDia)}</li>`);
+        items.push(`<li class="head" style="--g:${colour}"><i class="gdot"></i>${pillText(g.p)} <span>${fmt(g.s.length + g.a.length + g.t.length)}</span></li>`);
+      for (const k of ["s", "a", "t"]) {
+        const hits = g[k];
+        if (!hits.length) continue;
+        if (scope === "all") items.push(`<li class="head kind">${esc(T.heads[k])} <span>${fmt(hits.length)}</span></li>`);
+        for (const x of hits.slice(0, MAX_LIST)) {
+          listed.push(x);
+          const w = where[k](x);
+          items.push(`<li data-i="${listed.length - 1}" title="${esc(x.name)}${w ? " · " + esc(w) : ""}" style="--g:${colour}">` +
+            highlight(x.name, g.re, ignoreDia) + (w ? `<span class="where"> · ${esc(w)}</span>` : "") + "</li>");
+        }
+        if (hits.length > MAX_LIST) items.push(`<li class="more">${esc(T.more(fmt(hits.length - MAX_LIST)))}</li>`);
       }
-      if (g.hits.length > MAX_LIST) items.push(`<li class="more">${esc(T.more(fmt(g.hits.length - MAX_LIST)))}</li>`);
     }
     $results.innerHTML = items.join("");
   }
@@ -496,7 +625,7 @@
 
   function applyMatches(groups) {
     const owner = new Map(); // street name -> index of the first group it matches
-    for (const g of groups) for (const s of g.hits) if (!owner.has(s.name)) owner.set(s.name, g.i);
+    for (const g of groups) for (const s of g.s) if (!owner.has(s.name)) owner.set(s.name, g.i);
     currentMatches = [...owner.keys()];
     const filter = ["in", ["get", "name"], ["literal", currentMatches]];
     for (const id of ["hits-casing", "hits", "hit-labels", "hit-tags"]) map.setFilter(id, filter);
@@ -517,6 +646,57 @@
     map.setPaintProperty("hits", "line-color", colour("line", C.hit));
     map.setPaintProperty("hit-labels", "text-color", colour("label", C.label));
     map.setPaintProperty("hit-tags", "text-color", colour("label", C.label));
+    applyPlaceMatches(groups);
+  }
+
+  // Areas and stops: each belongs to the first group it matches (its colour).
+  function applyPlaceMatches(groups) {
+    const aOwner = new Map(), tOwner = new Map();
+    for (const g of groups) {
+      for (const a of g.a) if (!aOwner.has(a.i)) aOwner.set(a.i, g.i);
+      for (const t of g.t) if (!tOwner.has(t.i)) tOwner.set(t.i, g.i);
+    }
+    // ["match", ["get", "i"], [ids of group a], colour a, …, fallback]
+    const colourBy = (owner, key) => {
+      const byGroup = new Map();
+      for (const [id, gi] of owner) {
+        if (!byGroup.has(gi)) byGroup.set(gi, []);
+        byGroup.get(gi).push(id);
+      }
+      if (byGroup.size <= 1) return GROUP_COLORS[[...byGroup.keys()][0] ?? 0][key];
+      return ["match", ["get", "i"], ...[...byGroup].flatMap(([gi, ids]) => [ids, GROUP_COLORS[gi][key]]), C.hit];
+    };
+    const af = idFilter([...aOwner.keys()]), tf = idFilter([...tOwner.keys()]);
+    map.setFilter("area-fill", af);
+    // (fill and line layers skip the point areas; the circle layer would draw
+    // every corner of a polygon, so it only gets the points)
+    map.setFilter("area-line", af);
+    map.setFilter("area-dots", ["all", ["==", ["geometry-type"], "Point"], af]);
+    map.setFilter("stop-dots", tf);
+    const ac = colourBy(aOwner, "line");
+    map.setPaintProperty("area-fill", "fill-color", ac);
+    map.setPaintProperty("area-line", "line-color", ac);
+    map.setPaintProperty("area-dots", "circle-color", ac);
+    map.setPaintProperty("stop-dots", "circle-color", colourBy(tOwner, "line"));
+
+    // Tags: areas in the group's line colour, biggest kinds first (o);
+    // stops in its label colour, metro/train stations first.
+    const kindOrder = { mc: 0, ku: 1, ct: 2 };
+    const byI = (list) => new Map(list.map((x) => [x.i, x]));
+    const areaByI = byI(areas), stopByI = byI(stops);
+    const features = [];
+    for (const [i, gi] of aOwner) {
+      const a = areaByI.get(i);
+      features.push({ type: "Feature", properties: { k: "a", n: a.name, c: GROUP_COLORS[gi].line, o: kindOrder[a.k] },
+        geometry: { type: "Point", coordinates: [a.lx, a.ly] } });
+    }
+    for (const [i, gi] of tOwner) {
+      const t = stopByI.get(i);
+      const o = /metro|train/.test(t.m) ? 0 : /tram/.test(t.m) ? 1 : 2;
+      features.push({ type: "Feature", properties: { k: "t", n: t.name, c: GROUP_COLORS[gi].label, o },
+        geometry: { type: "Point", coordinates: [t.lx, t.ly] } });
+    }
+    map.getSource("place-tags").setData({ type: "FeatureCollection", features });
   }
 
   function zoomTo(list) {
@@ -581,17 +761,26 @@
   // ---- hover tooltip ------------------------------------------------------
 
   function setupHover() {
+    // Stops and point areas first, then streets, then the area under the mouse.
+    const HOVER = ["stop-dots", "area-dots", "hits", "roads", "area-fill"];
+    const describe = (f) => {
+      const p = f.properties;
+      if (f.layer.id === "stop-dots") return `${p.name} · ${p.m.split(",").map((m) => T.modes[m] ?? m).join(", ")}`;
+      if (f.layer.id === "area-dots" || f.layer.id === "area-fill") return `${p.name} · ${T.areaKind[p.k]}`;
+      return p.name;
+    };
     map.on("mousemove", (e) => {
-      const f = map.queryRenderedFeatures(
-        [[e.point.x - 4, e.point.y - 4], [e.point.x + 4, e.point.y + 4]],
-        { layers: ["hits", "roads"] }
-      ).find((f) => f.properties.name);
+      const fs = map.queryRenderedFeatures(
+        [[e.point.x - 4, e.point.y - 4], [e.point.x + 4, e.point.y + 4]], { layers: HOVER }
+      ).filter((f) => f.properties.name);
+      const f = HOVER.map((id) => fs.find((f) => f.layer.id === id)).find(Boolean);
       if (!f) { $tip.hidden = true; map.getCanvas().style.cursor = ""; return; }
-      $tip.textContent = f.properties.name;
+      $tip.textContent = describe(f);
       $tip.style.left = e.point.x + "px";
       $tip.style.top = e.point.y + "px";
       $tip.hidden = false;
-      map.getCanvas().style.cursor = "pointer";
+      // Only streets are clickable (a click searches for that street).
+      map.getCanvas().style.cursor = f.layer.id === "hits" || f.layer.id === "roads" ? "pointer" : "";
     });
     map.getCanvas().addEventListener("mouseleave", () => { $tip.hidden = true; });
     // Click a street to search for exactly that name.
@@ -610,8 +799,8 @@
 
   // ---- URL hash (shareable searches and map views) ------------------------
   //
-  // #q=<pattern>[&q=<pattern 2>…]&case=1&dia=1&map=<zoom>/<lat>/<lng>
-  // (one q per search group, in order)
+  // #q=<pattern>[&q=<pattern 2>…]&in=s|a|t&case=1&dia=1&map=<zoom>/<lat>/<lng>
+  // (one q per search group, in order; in= is left out when searching everything)
   // map= is written like on openstreetmap.org (slashes left unescaped).
 
   let mapView = null;        // "zoom/lat/lng" while the URL should carry the view
@@ -629,6 +818,7 @@
   function readHash() {
     const p = new URLSearchParams(location.hash.slice(1));
     renderGroups(p.getAll("q"));
+    setScope(["s", "a", "t"].includes(p.get("in")) ? p.get("in") : "all");
     $case.checked = p.get("case") === "1";
     // dia=1: match diacritics. Older links wrote dia=0 ("don't ignore"), same meaning.
     $dia.checked = p.get("dia") === "1" || p.get("dia") === "0";
@@ -640,6 +830,7 @@
   function writeHash() {
     const p = new URLSearchParams();
     for (const q of groupPatterns()) if (q) p.append("q", q);
+    if (getScope() !== "all") p.set("in", getScope());
     if ($case.checked) p.set("case", "1");
     if ($dia.checked) p.set("dia", "1");
     let h = p.toString();
@@ -830,4 +1021,5 @@
   });
   $case.addEventListener("change", search);
   $dia.addEventListener("change", search);
+  $scope.addEventListener("change", search);
 })();

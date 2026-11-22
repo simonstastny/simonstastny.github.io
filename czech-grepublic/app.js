@@ -520,8 +520,9 @@
     } else {
       // "3 obce a 12 ulic · zobrazit vše · uložit ☆"; each group's own count is in its row.
       setStatus(esc(T.matches(allS.length, fmt(allS.length), allM.length, fmt(allM.length))) +
-        SEP + `<button id="zoom-all" type="button">${esc(T.zoomAll)}</button>` + SEP);
-      $status.append($star);
+        `<span class="nw">${SEP}<button id="zoom-all" type="button">${esc(T.zoomAll)}</button></span>` +
+        `<span class="nw" id="star-slot">${SEP}</span>`);
+      document.getElementById("star-slot").append($star);
       document.getElementById("zoom-all").addEventListener("click", () =>
         zoomTo([...allM.map((m) => munis[m].bbox), ...allS.map(streetBbox)]));
     }

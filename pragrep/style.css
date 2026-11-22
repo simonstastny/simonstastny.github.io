@@ -134,10 +134,22 @@ span.pill { padding-right: 5px; }
 .add-group:hover { border-color: var(--g, var(--accent)); color: var(--text); }
 .add-group[hidden] { display: none; }
 
-/* Match toggles (Aa, ě) on their own line, on the right: a checkbox drawn as
-   a small pill, filled when on. */
-.options-row { flex: none; display: flex; justify-content: flex-end; gap: 6px; margin: 8px 0 0 2px; }
+/* Vše | Ulice | Čtvrti | Zastávky on the left, Aa / ě on the right. */
+.scope-row { flex: none; display: flex; align-items: center; gap: 6px; margin: 8px 0 0 2px; }
+/* A segmented control; 22px + padding and border = 28px, the height of the pills. */
+.scope {
+  display: inline-flex;
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px; font-size: 13px;
+}
+.scope label { position: relative; cursor: pointer; user-select: none; }
+.scope input { position: absolute; opacity: 0; pointer-events: none; }
+.scope span { display: flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; color: var(--muted); }
+.scope label:hover span { color: var(--text); }
+.scope input:checked + span { background: var(--accent); color: #fff; }
+.scope input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Match toggles (Aa, ě): a checkbox drawn as a small pill, filled when on. */
 .toggle { position: relative; flex: none; cursor: pointer; user-select: none; }
+.scope + .toggle { margin-left: auto; }
 .toggle input { position: absolute; opacity: 0; pointer-events: none; }
 .toggle span {
   display: flex; align-items: center; height: 28px; padding: 0 10px;
@@ -149,6 +161,10 @@ span.pill { padding-right: 5px; }
 .toggle input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* Group headings in the result list, with the group's number of matches. */
 #results li.head .gdot { display: inline-block; width: 8px; height: 8px; }
+/* Kind sub-headings (Ulice / Čtvrti / Zastávky, only when searching all) and
+   the muted "· katastrální území" / "· metro, tramvaj" after a name. */
+#results li.head.kind { font: 600 12px/1.4 system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+#results .where { color: var(--muted); }
 #results li.head {
   display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 6px 2px; cursor: default;
   font: 600 12px/1.4 ui-monospace, Menlo, monospace; color: var(--text);
@@ -171,6 +187,7 @@ span.pill { padding-right: 5px; }
 #status { margin: 8px 2px 4px; color: var(--muted); font-size: 13px; }
 #status.error { color: var(--error); }
 #status .sep { margin: 0 8px; }
+#status .nw { white-space: nowrap; } /* a long line breaks between items, not inside one */
 #status button {
   padding: 0; border: 0; background: none; color: var(--accent);
   font: inherit; cursor: pointer; text-decoration: underline;
@@ -242,13 +259,14 @@ span.pill { padding-right: 5px; }
   .gremove { width: 36px; height: 36px; }
   .add-group { height: 44px; font-size: 16px; } /* same as a search row */
   .toggle span { height: 32px; padding: 0 12px; }
+  .scope span { height: 26px; } /* matches the 32px pills */
   #status button { padding: 6px 0; } /* bigger tap targets */
   #results { overflow: visible; }
   #results li { padding: 7px 6px; } /* bigger tap targets */
   #starred-box { max-height: none; overflow: visible; }
 
   #sidebar:not(.expanded) .add-group,
-  #sidebar:not(.expanded) .options-row,
+  #sidebar:not(.expanded) .scope-row,
   #sidebar:not(.expanded) #results,
   #sidebar:not(.expanded) .box { display: none; }
 

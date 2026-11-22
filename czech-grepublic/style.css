@@ -191,6 +191,7 @@ span.pill { padding-right: 5px; }
 #status { margin: 8px 2px 4px; color: var(--muted); font-size: 13px; }
 #status.error { color: var(--error); }
 #status .sep { margin: 0 8px; }
+#status .nw { white-space: nowrap; } /* a long line breaks between items, not inside one */
 #status button {
   padding: 0; border: 0; background: none; color: var(--accent);
   font: inherit; cursor: pointer; text-decoration: underline;
