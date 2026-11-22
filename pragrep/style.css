@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light dark;
   --bg: #f7f6f3;
   --panel: rgba(255, 255, 255, 0.96);
   --panel-solid: #ffffff;
@@ -158,13 +159,17 @@ span.pill { padding-right: 5px; }
   #logo img { width: 150px; }
 
   #sheet-handle {
-    display: block; position: sticky; top: 0; z-index: 1;
-    width: calc(100% + 24px); height: 22px; margin: 0 -12px; padding: 0;
+    position: sticky; top: 0; z-index: 1;
+    /* 40px tall, full width: an easy target to tap or swipe (was 22px).
+       flex: none, or the expanded sheet (a flex column) squeezes it to 5px. */
+    flex: none;
+    width: calc(100% + 24px); height: 40px; margin: 0 -12px; padding: 0;
     border: 0; background: var(--panel-solid); cursor: grab; touch-action: none;
+    display: flex; align-items: center; justify-content: center;
   }
   #sheet-handle::before {
-    content: ""; display: block; margin: 8px auto 0;
-    width: 40px; height: 5px; border-radius: 3px; background: var(--border);
+    content: ""; display: block; margin: 0 auto;
+    width: 44px; height: 5px; border-radius: 3px; background: var(--border);
   }
 
   #panel, .box {
@@ -172,7 +177,7 @@ span.pill { padding-right: 5px; }
   }
   #panel { flex: none; }
   .box { border-top: 1px solid var(--border); padding-top: 10px; }
-  .search-row { position: sticky; top: 22px; z-index: 1; background: var(--panel-solid); padding-bottom: 6px; }
+  .search-row { flex: none; position: sticky; top: 40px; z-index: 1; background: var(--panel-solid); padding-bottom: 6px; }
   #q { font-size: 16px; } /* below 16px, iOS Safari zooms the page on focus */
   #star { width: 42px; }
   #results { overflow: visible; }

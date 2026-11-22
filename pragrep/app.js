@@ -553,7 +553,8 @@
   const SUGGESTIONS = [
     "Botič", "Vltav", "Padesát", "Milíčov", "st(i|y)chova", "^v?oticka", "(^| )chod",
     "Pra(z|h)", "Kamý", "Beran", "^Na ", "sad",
-    
+    "Mich(a|e)lská", "Tábor", ".mírova", "\\d. květ|květnového|máj", "schod",
+    "nábřeží", "žitná|ječná|pšeničná|ovesná", "lhot",
   ];
   const $sugg = document.getElementById("suggestions");
 
