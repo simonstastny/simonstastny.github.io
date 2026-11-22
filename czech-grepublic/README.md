@@ -26,22 +26,26 @@ does).
 - Matching municipalities are tinted and outlined on the map and get a name
   tag at every zoom. Matching streets get a name tag beside them when zoomed
   out and are drawn in orange when zoomed in.
-- **Ulice | Obojí | Obce** (Streets | Both | Municipalities) under the search
-  box chooses what to search; both by default. It's kept in the URL as
-  `in=s` or `in=m`.
-- **Comparing groups**: **+ Přidat skupinu k porovnání** adds another search
-  row (up to 5), each in its own colour (orange, cyan, green, purple, pink):
-  its streets, municipality areas and name tags on the map, its counts, and
-  its section of the result list. A street or municipality matching several
-  groups takes the first group's colour. The URL repeats `q` per group; ☆ saves
-  the whole comparison.
+- Each search row shows its number of matches on the right (hover it for
+  municipalities vs. streets); the line under the controls gives the total,
+  **zobrazit vše** (zoom to all) and **uložit ☆**, which saves the current
+  pattern, or the whole comparison, to *Oblíbené* (it then reads **uloženo ★**;
+  click again to remove it).
+- **Ulice | Obojí | Obce** (Streets | Both | Municipalities) chooses what to
+  search; both by default. It's kept in the URL as `in=s` or `in=m`.
+- **Comparing groups**: **+ Přidat skupinu** adds another search row (up to 5),
+  each in its own colour (orange, cyan, green, purple, pink): its streets,
+  municipality areas and name tags on the map, its count, and its section of
+  the result list. × in a row removes it. A street or municipality matching
+  several groups takes the first group's colour. The URL repeats `q` per group.
 - **Jste tu poprvé?** shows the first three rows of suggestions, then
   **+ ukázat více**. In `SUGGESTIONS` (app.js) a comparison is an array of
   patterns, e.g. `["^Horní ", "^Dolní "]`.
-- **Diakritika / Match diacritics** and **VELKÁ/malá / Match case**: both off
-  by default, so `nadrazni` finds *Nádražní*.
-- **Popisky / Labels**, **☆ starred patterns**, **Jste tu poprvé?** suggestions,
-  the CS/EN switch, the phone bottom sheet and shareable URLs
+- **Aa** (match case) and **ě** (match diacritics), the small pills right of
+  **Ulice | Obojí | Obce**: both off by default, so `nadrazni` finds *Nádražní*.
+- Map labels (street names, matching names' tags) are always on.
+- **Jste tu poprvé?** suggestions, the CS/EN switch, the phone bottom sheet
+  (collapsed: just the search rows and the total) and shareable URLs
   (`#q=...&map=zoom/lat/lng`) work as in pragrep. Starred patterns are kept
   separately from pragrep's.
 - Hover a street to see its name and municipality; zoomed in, hovering

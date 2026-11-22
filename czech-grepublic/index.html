@@ -42,28 +42,29 @@
         <div class="search-row">
           <span class="gdot" aria-hidden="true"></span>
           <input class="q" type="search" placeholder="Ulice nebo obec, třeba i regulární výraz, např. ^Lhota" data-i18n-placeholder="placeholder" autocomplete="off" spellcheck="false" autofocus>
-          <button id="star" type="button" aria-pressed="false" title="Přidat vzor do oblíbených" disabled>☆</button>
+          <span class="gcount"></span>
         </div>
       </div>
-      <button id="add-group" type="button" class="add-group" data-i18n="addGroup">+ Přidat skupinu k porovnání</button>
-      <!-- What to search: both kinds, only streets, or only municipalities. -->
-      <div id="scope" class="scope" role="radiogroup" aria-label="Hledat" data-i18n-label="scopeGroup">
-        <label><input type="radio" name="scope" value="s"><span data-i18n="scopeStreets">Ulice</span></label>
-        <label><input type="radio" name="scope" value="both" checked><span data-i18n="scopeBoth">Obojí</span></label>
-        <label><input type="radio" name="scope" value="m"><span data-i18n="scopeMunis">Obce</span></label>
+      <button id="add-group" type="button" class="add-group"><span class="plus" aria-hidden="true">+</span><span data-i18n="addGroup">Přidat skupinu</span></button>
+      <!-- What to search (both kinds, only streets, or only municipalities), and
+           on the right the Aa / ě match toggles (checkboxes drawn as small pills). -->
+      <div class="scope-row">
+        <div id="scope" class="scope" role="radiogroup" aria-label="Hledat" data-i18n-label="scopeGroup">
+          <label><input type="radio" name="scope" value="s"><span data-i18n="scopeStreets">Ulice</span></label>
+          <label><input type="radio" name="scope" value="both" checked><span data-i18n="scopeBoth">Obojí</span></label>
+          <label><input type="radio" name="scope" value="m"><span data-i18n="scopeMunis">Obce</span></label>
+        </div>
+        <label class="toggle" title="Rozlišovat VELKÁ/malá" data-i18n-title="matchCase"><input type="checkbox" id="opt-case" aria-label="Rozlišovat VELKÁ/malá" data-i18n-label="matchCase"><span aria-hidden="true">Aa</span></label>
+        <label class="toggle" title="Rozlišovat diakritiku" data-i18n-title="matchDia"><input type="checkbox" id="opt-diacritics" aria-label="Rozlišovat diakritiku" data-i18n-label="matchDia"><span aria-hidden="true">ě</span></label>
       </div>
-      <div class="options">
-        <label><input type="checkbox" id="opt-case"> <span data-i18n="matchCase">VELKÁ/malá</span></label>
-        <label><input type="checkbox" id="opt-diacritics"> <span data-i18n="matchDia">Diakritika</span></label>
-        <label><input type="checkbox" id="opt-labels" checked> <span data-i18n="labels">Popisky</span></label>
-      </div>
+      <!-- Match counts, "zobrazit vše" and "uložit ☆" (app.js). -->
       <div id="status" data-i18n="loading">Načítám data…</div>
       <ul id="results"></ul>
     </div>
 
     <section id="starred-box" class="box">
       <h2 data-i18n="starredTitle">Oblíbené</h2>
-      <p id="starred-empty" data-i18n="starredEmpty">Kliknutím na ☆ vedle vyhledávání si uložíte vzor.</p>
+      <p id="starred-empty" data-i18n="starredEmpty">Vzor uložíte kliknutím na „uložit ☆“ u výsledků.</p>
       <div id="starred" class="pills"></div>
     </section>
 

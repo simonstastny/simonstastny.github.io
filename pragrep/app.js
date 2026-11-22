@@ -13,16 +13,15 @@
     cs: {
       title: "Pražské ulice",
       placeholder: "Název ulice nebo regulární výraz, např. ^Na |ova$",
-      matchCase: "VELKÁ/malá",
-      matchDia: "Diakritika",
-      labels: "Popisky",
+      matchCase: "Rozlišovat VELKÁ/malá",
+      matchDia: "Rozlišovat diakritiku",
       loading: "Načítám ulice…",
       loadFailed: (msg) => `Nepodařilo se načíst data ulic (${msg}). Nejdřív spusťte scripts/fetch_streets.py.`,
       idle: (n, s) => `${s} ${PLURAL("cs", n, { one: "ulice", few: "ulice", other: "ulic" })}. Napište název nebo regulární výraz.`,
       noMatch: "Žádná ulice neodpovídá.",
       matches: (n, s) => `${s} ${PLURAL("cs", n, { one: "odpovídající ulice", few: "odpovídající ulice", other: "odpovídajících ulic" })}`,
       count: (n, s) => `${s} ${PLURAL("cs", n, { one: "ulice", few: "ulice", other: "ulic" })}`,
-      addGroup: "+ Přidat skupinu k porovnání",
+      addGroup: "Přidat skupinu",
       removeGroup: "Odebrat skupinu",
       placeholderMore: "Další skupina, např. dolní",
       groupName: (n) => `Skupina ${n}`,
@@ -33,7 +32,9 @@
       starRemove: "Odebrat z oblíbených",
       removeAria: (p) => `Odebrat ${p} z oblíbených`,
       starredTitle: "Oblíbené",
-      starredEmpty: "Přidejte vzor kliknutím na ☆ vedle vyhledávání",
+      starredEmpty: "Vzor uložíte kliknutím na „uložit ☆“ u výsledků.",
+      starSave: "uložit",
+      starSaved: "uloženo",
       introTitle: "Jste tu poprvé?",
       introText: "Klikněte na vzor a vyzkoušejte ho:",
       showMore: "+ ukázat více",
@@ -53,14 +54,13 @@
       placeholder: "Street name or regex, e.g. ^Na |ova$",
       matchCase: "Match case",
       matchDia: "Match diacritics",
-      labels: "Labels",
       loading: "Loading streets…",
       loadFailed: (msg) => `Failed to load street data (${msg}). Run scripts/fetch_streets.py first.`,
       idle: (n, s) => `${s} streets. Type a name or a regular expression.`,
       noMatch: "No matching streets.",
       matches: (n, s) => `${s} matching street${n === 1 ? "" : "s"}`,
       count: (n, s) => `${s} street${n === 1 ? "" : "s"}`,
-      addGroup: "+ Add a group to compare",
+      addGroup: "Add a group",
       removeGroup: "Remove group",
       placeholderMore: "Another group, e.g. dolní",
       groupName: (n) => `Group ${n}`,
@@ -71,7 +71,9 @@
       starRemove: "Remove from starred",
       removeAria: (p) => `Remove ${p} from starred`,
       starredTitle: "Starred",
-      starredEmpty: "Click ☆ next to the search box to save a pattern here.",
+      starredEmpty: "Click “save ☆” next to the results to keep a pattern here.",
+      starSave: "save",
+      starSaved: "saved",
       introTitle: "New here?",
       introText: "Click a pattern to try it:",
       showMore: "+ show more",
@@ -99,6 +101,7 @@
     for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = T[el.dataset.i18n];
     for (const el of document.querySelectorAll("[data-i18n-placeholder]")) el.placeholder = T[el.dataset.i18nPlaceholder];
     for (const el of document.querySelectorAll("[data-i18n-label]")) el.setAttribute("aria-label", T[el.dataset.i18nLabel]);
+    for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = T[el.dataset.i18nTitle];
     for (const b of document.querySelectorAll("#lang [data-lang]")) {
       b.setAttribute("aria-pressed", String(b.dataset.lang === lang));
       // Switching reloads the page so every text, including the map's, is redone;
@@ -129,10 +132,11 @@
 
   const $groups = document.getElementById("groups");
   const $addGroup = document.getElementById("add-group");
-  const $star = document.getElementById("star");
+  // "uložit ☆" / "uloženo ★": saves the whole set of patterns. It sits at the
+  // end of the status line (search() puts it there after the count).
+  const $star = Object.assign(document.createElement("button"), { id: "star", type: "button" });
   const $case = document.getElementById("opt-case");
   const $dia = document.getElementById("opt-diacritics");
-  const $labels = document.getElementById("opt-labels");
   const $status = document.getElementById("status");
   const $results = document.getElementById("results");
   const $tip = document.getElementById("tooltip");
@@ -340,7 +344,6 @@
     }
 
     setupHover();
-    applyLabels();
     search();
 
     // Put the view in the URL whenever the user stops moving the map (drag,
@@ -355,6 +358,8 @@
   });
 
   // ---- search -------------------------------------------------------------
+
+  const SEP = `<span class="sep" aria-hidden="true">·</span>`; // between items of the status line
 
   function setStatus(html, isError = false) {
     $status.innerHTML = html;
@@ -386,11 +391,13 @@
         `<span class="gdot" aria-hidden="true"></span>` +
         `<input class="q" type="search" value="${esc(p)}" placeholder="${esc(i ? T.placeholderMore : T.placeholder)}"` +
           ` aria-label="${esc(T.groupName(i + 1))}" autocomplete="off" spellcheck="false">` +
-        `<button type="button" class="gremove" title="${esc(T.removeGroup)}" aria-label="${esc(T.removeGroup)}">×</button>` +
+        `<span class="gcount"></span>` +
+        `<button type="button" class="gremove" title="${esc(T.removeGroup)}" aria-label="${esc(T.removeGroup)}">` +
+          `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` +
       `</div>`).join("");
-    $groups.querySelector(".search-row").appendChild($star); // ☆ saves the whole set; it sits on the first row
     $groups.classList.toggle("multi", list.length > 1);
     $addGroup.hidden = list.length >= MAX_GROUPS;
+    if (!$addGroup.hidden) $addGroup.style.setProperty("--g", GROUP_COLORS[list.length].line); // the new group's colour
     focusedGroup = Math.min(focusedGroup, list.length - 1);
     if (focused >= 0) groupInputs()[Math.min(focused, list.length - 1)].focus();
   }
@@ -430,6 +437,14 @@
     });
     applyMatches(groups);
     const all = [...new Set(groups.flatMap((g) => g.hits))];
+    // Each row shows its own number of matches; empty or invalid rows show nothing.
+    const rows = [...$groups.querySelectorAll(".search-row")];
+    rows.forEach((row) => { const c = row.querySelector(".gcount"); c.textContent = ""; c.removeAttribute("title"); });
+    for (const g of groups) {
+      const c = rows[g.i].querySelector(".gcount");
+      c.textContent = fmt(g.hits.length);
+      c.title = T.count(g.hits.length, fmt(g.hits.length));
+    }
 
     if (error) {
       setStatus(esc(error), true);
@@ -438,11 +453,10 @@
     } else if (!all.length) {
       setStatus(esc(T.noMatch));
     } else {
-      // One group: "N odpovídajících ulic"; several: "● 13 ulic ● 7 ulic".
-      const counts = groups.length === 1 ? esc(T.matches(all.length, fmt(all.length)))
-        : groups.map((g) => `<span class="gcount" style="--g:${GROUP_COLORS[g.i].line}"><i class="gdot"></i>` +
-            `${esc(T.count(g.hits.length, fmt(g.hits.length)))}</span>`).join("");
-      setStatus(counts + `<button id="zoom-all" type="button">${esc(T.zoomAll)}</button>`);
+      // "N odpovídajících ulic · zobrazit vše · uložit ☆"; each group's own count is in its row.
+      setStatus(esc(T.matches(all.length, fmt(all.length))) +
+        SEP + `<button id="zoom-all" type="button">${esc(T.zoomAll)}</button>` + SEP);
+      $status.append($star);
       document.getElementById("zoom-all").addEventListener("click", () => zoomTo(all));
     }
 
@@ -503,11 +517,6 @@
     map.setPaintProperty("hits", "line-color", colour("line", C.hit));
     map.setPaintProperty("hit-labels", "text-color", colour("label", C.label));
     map.setPaintProperty("hit-tags", "text-color", colour("label", C.label));
-  }
-
-  function applyLabels() {
-    const v = $labels.checked ? "visible" : "none";
-    for (const id of ["street-labels", "hit-labels", "hit-tags"]) map.setLayoutProperty(id, "visibility", v);
   }
 
   function zoomTo(list) {
@@ -601,7 +610,7 @@
 
   // ---- URL hash (shareable searches and map views) ------------------------
   //
-  // #q=<pattern>[&q=<pattern 2>…]&case=1&dia=1&labels=0&map=<zoom>/<lat>/<lng>
+  // #q=<pattern>[&q=<pattern 2>…]&case=1&dia=1&map=<zoom>/<lat>/<lng>
   // (one q per search group, in order)
   // map= is written like on openstreetmap.org (slashes left unescaped).
 
@@ -623,7 +632,6 @@
     $case.checked = p.get("case") === "1";
     // dia=1: match diacritics. Older links wrote dia=0 ("don't ignore"), same meaning.
     $dia.checked = p.get("dia") === "1" || p.get("dia") === "0";
-    $labels.checked = p.get("labels") !== "0";
     const view = parseView(p.get("map"));
     mapView = view ? p.get("map") : null;
     lastSearchKey = null;
@@ -634,7 +642,6 @@
     for (const q of groupPatterns()) if (q) p.append("q", q);
     if ($case.checked) p.set("case", "1");
     if ($dia.checked) p.set("dia", "1");
-    if (!$labels.checked) p.set("labels", "0");
     let h = p.toString();
     if (mapView) h += (h ? "&" : "") + "map=" + mapView;
     history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
@@ -736,7 +743,7 @@
     const k = JSON.stringify(pats);
     const on = pats.length > 0 && starred.some((e) => entryKey(e) === k);
     $star.disabled = !valid && !on;
-    $star.textContent = on ? "★" : "☆";
+    $star.textContent = on ? `${T.starSaved} ★` : `${T.starSave} ☆`;
     $star.setAttribute("aria-pressed", String(on));
     $star.title = on ? T.starRemove : T.starAdd;
   }
@@ -819,10 +826,8 @@
   addEventListener("hashchange", () => {
     const view = readHash();
     if (view) map.jumpTo(view);
-    applyLabels();
     search();
   });
-  $labels.addEventListener("change", () => { applyLabels(); writeHash(); });
   $case.addEventListener("change", search);
   $dia.addEventListener("change", search);
 })();

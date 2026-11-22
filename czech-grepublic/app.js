@@ -17,9 +17,8 @@
     cs: {
       title: "Czech grepublic – ulice a obce Česka",
       placeholder: "Ulice nebo obec, třeba i regulární výraz, např. ^Lhota",
-      matchCase: "VELKÁ/malá",
-      matchDia: "Diakritika",
-      labels: "Popisky",
+      matchCase: "Rozlišovat VELKÁ/malá",
+      matchDia: "Rozlišovat diakritiku",
       loading: "Načítám data…",
       loadFailed: (msg) => `Nepodařilo se načíst data (${msg}). Nejdřív spusťte scripts/build_data.py.`,
       idle: (counts) => `${counts}. Napište název nebo regulární výraz.`,
@@ -39,12 +38,14 @@
       starRemove: "Odebrat z oblíbených",
       removeAria: (p) => `Odebrat ${p} z oblíbených`,
       starredTitle: "Oblíbené",
-      starredEmpty: "Přidejte vzor kliknutím na ☆ vedle vyhledávání",
+      starredEmpty: "Vzor uložíte kliknutím na „uložit ☆“ u výsledků.",
+      starSave: "uložit",
+      starSaved: "uloženo",
       introTitle: "Jste tu poprvé?",
       introText: "Klikněte na vzor a vyzkoušejte ho:",
       showMore: "+ ukázat více",
       showLess: "− ukázat méně",
-      addGroup: "+ Přidat skupinu k porovnání",
+      addGroup: "Přidat skupinu",
       removeGroup: "Odebrat skupinu",
       placeholderMore: "Další skupina, např. ^Dolní",
       groupName: (n) => `Skupina ${n}`,
@@ -63,7 +64,6 @@
       placeholder: "Street or town, or a regex, e.g. ^Lhota",
       matchCase: "Match case",
       matchDia: "Match diacritics",
-      labels: "Labels",
       loading: "Loading data…",
       loadFailed: (msg) => `Failed to load data (${msg}). Run scripts/build_data.py first.`,
       idle: (counts) => `${counts}. Type a name or a regular expression.`,
@@ -83,12 +83,14 @@
       starRemove: "Remove from starred",
       removeAria: (p) => `Remove ${p} from starred`,
       starredTitle: "Starred",
-      starredEmpty: "Click ☆ next to the search box to save a pattern here.",
+      starredEmpty: "Click “save ☆” next to the results to keep a pattern here.",
+      starSave: "save",
+      starSaved: "saved",
       introTitle: "New here?",
       introText: "Click a pattern to try it:",
       showMore: "+ show more",
       showLess: "− show less",
-      addGroup: "+ Add a group to compare",
+      addGroup: "Add a group",
       removeGroup: "Remove group",
       placeholderMore: "Another group, e.g. ^Dolní",
       groupName: (n) => `Group ${n}`,
@@ -115,6 +117,7 @@
     for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = T[el.dataset.i18n];
     for (const el of document.querySelectorAll("[data-i18n-placeholder]")) el.placeholder = T[el.dataset.i18nPlaceholder];
     for (const el of document.querySelectorAll("[data-i18n-label]")) el.setAttribute("aria-label", T[el.dataset.i18nLabel]);
+    for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = T[el.dataset.i18nTitle];
     for (const b of document.querySelectorAll("#lang [data-lang]")) {
       b.setAttribute("aria-pressed", String(b.dataset.lang === lang));
       // Switching reloads the page so every text, including the map's, is redone;
@@ -145,10 +148,11 @@
 
   const $groups = document.getElementById("groups");
   const $addGroup = document.getElementById("add-group");
-  const $star = document.getElementById("star");
+  // "uložit ☆" / "uloženo ★": saves the whole set of patterns. It sits at the
+  // end of the status line (search() puts it there after the counts).
+  const $star = Object.assign(document.createElement("button"), { id: "star", type: "button" });
   const $case = document.getElementById("opt-case");
   const $dia = document.getElementById("opt-diacritics");
-  const $labels = document.getElementById("opt-labels");
   const $scope = document.getElementById("scope");
   // What to search: "both", "s" (streets only) or "m" (municipalities only).
   const getScope = () => $scope.querySelector("input:checked").value;
@@ -403,7 +407,6 @@
     }
 
     setupHover();
-    applyLabels();
     search();
 
     // Put the view in the URL whenever the user stops moving the map, or after
@@ -416,6 +419,8 @@
   });
 
   // ---- search -------------------------------------------------------------
+
+  const SEP = `<span class="sep" aria-hidden="true">·</span>`; // between items of the status line
 
   function setStatus(html, isError = false) {
     $status.innerHTML = html;
@@ -447,16 +452,16 @@
         `<span class="gdot" aria-hidden="true"></span>` +
         `<input class="q" type="search" value="${esc(p)}" placeholder="${esc(i ? T.placeholderMore : T.placeholder)}"` +
           ` aria-label="${esc(T.groupName(i + 1))}" autocomplete="off" spellcheck="false">` +
-        `<button type="button" class="gremove" title="${esc(T.removeGroup)}" aria-label="${esc(T.removeGroup)}">×</button>` +
+        `<span class="gcount"></span>` +
+        `<button type="button" class="gremove" title="${esc(T.removeGroup)}" aria-label="${esc(T.removeGroup)}">` +
+          `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` +
       `</div>`).join("");
-    $groups.querySelector(".search-row").appendChild($star); // ☆ saves the whole set; it sits on the first row
     $groups.classList.toggle("multi", list.length > 1);
     $addGroup.hidden = list.length >= MAX_GROUPS;
+    if (!$addGroup.hidden) $addGroup.style.setProperty("--g", GROUP_COLORS[list.length].line); // the new group's colour
     focusedGroup = Math.min(focusedGroup, list.length - 1);
     if (focused >= 0) groupInputs()[Math.min(focused, list.length - 1)].focus();
   }
-
-  let lastHits = { munis: [], streets: [] };
 
   function search() {
     if (!loaded) return;
@@ -495,7 +500,15 @@
     applyMatches(groups);
     const allM = [...new Set(groups.flatMap((g) => g.munis))];
     const allS = [...new Set(groups.flatMap((g) => g.streets))];
-    lastHits = { munis: allM, streets: allS };
+    // Each row shows its own number of matches (municipalities + streets);
+    // hovering it spells them out. Empty or invalid rows show nothing.
+    const rows = [...$groups.querySelectorAll(".search-row")];
+    rows.forEach((row) => { const c = row.querySelector(".gcount"); c.textContent = ""; c.removeAttribute("title"); });
+    for (const g of groups) {
+      const c = rows[g.i].querySelector(".gcount");
+      c.textContent = fmt(g.munis.length + g.streets.length);
+      c.title = T.matches(g.streets.length, fmt(g.streets.length), g.munis.length, fmt(g.munis.length)) || T.noMatch;
+    }
 
     if (error) {
       setStatus(esc(error), true);
@@ -505,11 +518,10 @@
     } else if (!allM.length && !allS.length) {
       setStatus(esc(T.noMatch));
     } else {
-      // One group: "3 obce a 12 ulic"; several: "● 3 obce a 12 ulic ● 40 ulic".
-      const counts = groups.length === 1 ? esc(T.matches(allS.length, fmt(allS.length), allM.length, fmt(allM.length)))
-        : groups.map((g) => `<span class="gcount" style="--g:${GROUP_COLORS[g.i].line}"><i class="gdot"></i>` +
-            `${esc(T.matches(g.streets.length, fmt(g.streets.length), g.munis.length, fmt(g.munis.length)) || fmt(0))}</span>`).join("");
-      setStatus(counts + `<button id="zoom-all" type="button">${esc(T.zoomAll)}</button>`);
+      // "3 obce a 12 ulic · zobrazit vše · uložit ☆"; each group's own count is in its row.
+      setStatus(esc(T.matches(allS.length, fmt(allS.length), allM.length, fmt(allM.length))) +
+        SEP + `<button id="zoom-all" type="button">${esc(T.zoomAll)}</button>` + SEP);
+      $status.append($star);
       document.getElementById("zoom-all").addEventListener("click", () =>
         zoomTo([...allM.map((m) => munis[m].bbox), ...allS.map(streetBbox)]));
     }
@@ -517,10 +529,13 @@
     const list = [];
     for (const g of groups) {
       const st = `style="--g:${GROUP_COLORS[g.i].line}"`;
-      if (groups.length > 1) list.push(`<li class="head ghead" ${st}><i class="gdot"></i>${pillText(g.p)}</li>`);
+      // Several groups: a heading per group with its number of matches.
+      if (groups.length > 1) list.push(`<li class="head ghead" ${st}><i class="gdot"></i>${pillText(g.p)}` +
+        `<span class="gn">${fmt(g.munis.length + g.streets.length)}</span></li>`);
       const nm = g.munis.length, ns = g.streets.length;
+      // "Obce" / "Ulice" sub-headings only when searching both kinds.
       if (nm) {
-        list.push(`<li class="head">${esc(T.munisHead)} <span>${fmt(nm)}</span></li>`);
+        if (scope === "both") list.push(`<li class="head">${esc(T.munisHead)} <span>${fmt(nm)}</span></li>`);
         for (const m of g.munis.slice(0, MAX_LIST)) {
           const mu = munis[m];
           list.push(`<li data-m="${m}" title="${esc(mu.name)}" ${st}>${highlight(mu.name, g.re, ignoreDia)}` +
@@ -529,7 +544,7 @@
         if (nm > MAX_LIST) list.push(`<li class="more">${esc(T.more(fmt(nm - MAX_LIST)))}</li>`);
       }
       if (ns) {
-        list.push(`<li class="head">${esc(T.streetsHead)} <span>${fmt(ns)}</span></li>`);
+        if (scope === "both") list.push(`<li class="head">${esc(T.streetsHead)} <span>${fmt(ns)}</span></li>`);
         for (const s of g.streets.slice(0, MAX_LIST)) {
           const name = streetName(s), mu = streetMuni(s);
           list.push(`<li data-s="${s}" title="${esc(name)} · ${esc(mu.name)}" ${st}>${highlight(name, g.re, ignoreDia)}` +
@@ -577,7 +592,7 @@
     map.setFilter("muni-hit-line", mf);
     const any = sIds.length + mIds.length > 0;
     map.setPaintProperty("roads", "line-color", any ? C.roadDim : C.road);
-    map.setLayoutProperty("place-labels", "visibility", any || !$labels.checked ? "none" : "visible");
+    map.setLayoutProperty("place-labels", "visibility", any ? "none" : "visible");
 
     // Colour by group: ["match", tile id "i", [ids of group a], colour a, [ids of group b], colour b, …, fallback]
     const colourBy = (owner, key, fallback) => {
@@ -615,13 +630,6 @@
       });
     }
     map.getSource("tags").setData({ type: "FeatureCollection", features });
-  }
-
-  function applyLabels() {
-    const v = $labels.checked ? "visible" : "none";
-    for (const id of ["street-labels", "hit-labels", "street-tags", "muni-tags"]) map.setLayoutProperty(id, "visibility", v);
-    const any = lastHits.munis.length + lastHits.streets.length > 0;
-    map.setLayoutProperty("place-labels", "visibility", $labels.checked && !any ? "visible" : "none");
   }
 
   // Fit the map to a list of [x0, y0, x1, y1] boxes.
@@ -721,7 +729,7 @@
 
   // ---- URL hash (shareable searches and map views) ------------------------
   //
-  // #q=<pattern>[&q=<pattern 2>…]&in=s|m&case=1&dia=1&labels=0&map=<zoom>/<lat>/<lng>
+  // #q=<pattern>[&q=<pattern 2>…]&in=s|m&case=1&dia=1&map=<zoom>/<lat>/<lng>
   // (one q per search group, in order)
   // (in= is left out for the default, searching both streets and municipalities)
   // map= is written like on openstreetmap.org (slashes left unescaped).
@@ -744,7 +752,6 @@
     setScope(["s", "m"].includes(p.get("in")) ? p.get("in") : "both");
     $case.checked = p.get("case") === "1";
     $dia.checked = p.get("dia") === "1";
-    $labels.checked = p.get("labels") !== "0";
     const view = parseView(p.get("map"));
     mapView = view ? p.get("map") : null;
     lastSearchKey = null;
@@ -756,7 +763,6 @@
     if (getScope() !== "both") p.set("in", getScope());
     if ($case.checked) p.set("case", "1");
     if ($dia.checked) p.set("dia", "1");
-    if (!$labels.checked) p.set("labels", "0");
     let h = p.toString();
     if (mapView) h += (h ? "&" : "") + "map=" + mapView;
     history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
@@ -860,7 +866,7 @@
     const k = JSON.stringify(pats);
     const on = pats.length > 0 && starred.some((e) => entryKey(e) === k);
     $star.disabled = !valid && !on;
-    $star.textContent = on ? "★" : "☆";
+    $star.textContent = on ? `${T.starSaved} ★` : `${T.starSave} ☆`;
     $star.setAttribute("aria-pressed", String(on));
     $star.title = on ? T.starRemove : T.starAdd;
   }
@@ -944,10 +950,8 @@
   addEventListener("hashchange", () => {
     const view = readHash();
     if (view) map.jumpTo(view);
-    applyLabels();
     search();
   });
-  $labels.addEventListener("change", () => { applyLabels(); writeHash(); });
   $case.addEventListener("change", search);
   $dia.addEventListener("change", search);
   $scope.addEventListener("change", search);
