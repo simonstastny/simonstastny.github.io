@@ -1,0 +1,218 @@
+:root {
+  --bg: #f7f6f3;
+  --panel: rgba(255, 255, 255, 0.96);
+  --panel-solid: #ffffff;
+  --text: #1d1d1f;
+  --muted: #6b6b70;
+  --border: #d9d8d4;
+  --accent: #e4572e;
+  --error: #c62828;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15161a;
+    --panel: rgba(30, 31, 36, 0.96);
+    --panel-solid: #1e1f24;
+    --text: #ececef;
+    --muted: #9a9aa2;
+    --border: #3a3b42;
+    --accent: #ff7a50;
+    --error: #ff6b6b;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+#map { position: absolute; inset: 0; }
+
+/* Logo, search panel and the boxes below it, stacked. The search panel
+   shrinks (its result list scrolls) so everything fits on screen. */
+#sidebar {
+  position: absolute; top: 12px; left: 12px; z-index: 2;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  display: flex; flex-direction: column; gap: 10px;
+  pointer-events: none; /* the gap between boxes lets clicks through to the map */
+}
+#panel, .box {
+  pointer-events: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  padding: 10px;
+}
+#panel { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; }
+/* Logo sits straight on the map (transparent PNG), above the search panel. */
+#brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
+#logo { display: flex; align-items: center; gap: 10px; flex: 0 1 auto; min-width: 0; margin: 0 2px; }
+/* Text logo in the style of pragrep's: map icon + monospace name, orange "g". */
+.text-logo span {
+  font: 700 19px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: -0.02em;
+  color: var(--text); white-space: nowrap;
+}
+.text-logo b { color: var(--accent); font-weight: inherit; }
+
+/* CS / EN switch at the right of the logo row. */
+#lang {
+  pointer-events: auto; display: flex; flex: none;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 2px;
+}
+#lang button {
+  padding: 2px 8px; border: 0; border-radius: 999px; background: none; cursor: pointer;
+  color: var(--muted); font: 600 11px/1.4 system-ui, sans-serif; letter-spacing: 0.04em;
+}
+#lang button:hover { color: var(--text); }
+#lang button[aria-pressed="true"] { background: var(--accent); color: #fff; cursor: default; }
+#logo img { display: block; width: 40px; height: 40px; flex: none; }
+/* Boxes under the search panel ("New here?", "Starred"). */
+.box { flex: none; }
+.box h2 { margin: 0 2px; font-size: 14px; font-weight: 600; }
+.box p { margin: 6px 2px 8px; color: var(--muted); font-size: 13px; }
+
+/* Pattern pills. A pill is either a single button (suggestions) or a span
+   holding a main button plus a small remove button (starred). */
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  display: inline-flex; align-items: center;
+  padding: 3px 8px; font: 12px/1.4 ui-monospace, Menlo, monospace; white-space: pre;
+  color: var(--text); background: transparent; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 999px;
+}
+.pill:hover { border-color: var(--accent); color: var(--accent); }
+.pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pill .space { opacity: 0.5; }
+.pill-main, .pill-x {
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer;
+}
+span.pill { padding-right: 5px; }
+.pill-x {
+  margin-left: 6px; width: 14px; height: 14px; border-radius: 50%;
+  font: 13px/14px system-ui, sans-serif; opacity: 0.55;
+}
+.pill-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent); }
+
+/* Starred list can grow; cap it and let it scroll rather than push things off
+   screen. It never shrinks below its content otherwise: the result list gives way. */
+#starred-box { flex: none; max-height: 30vh; overflow-y: auto; }
+#starred-box .pills:not(:empty) { margin-top: 8px; }
+.search-row { display: flex; gap: 6px; }
+#star {
+  flex: none; width: 38px; padding: 0; font-size: 20px; line-height: 1;
+  color: var(--muted); background: transparent; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px;
+}
+#star:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+#star[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+#star:disabled { opacity: 0.4; cursor: default; }
+#q {
+  flex: 1; min-width: 0; padding: 8px 10px; font: inherit; font-family: ui-monospace, Menlo, monospace;
+  color: var(--text); background: transparent;
+  border: 1px solid var(--border); border-radius: 6px; outline: none;
+}
+#q:focus { border-color: var(--accent); }
+#q.invalid { border-color: var(--error); }
+
+.options { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 2px 4px; color: var(--muted); font-size: 13px; }
+.options label { display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; }
+/* Obojí | Ulice | Obce: a segmented control on its own row under the search box. */
+.scope {
+  display: inline-flex; align-self: flex-start; margin: 8px 2px 0;
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px; font-size: 13px;
+}
+.scope label { position: relative; cursor: pointer; user-select: none; }
+.scope input { position: absolute; opacity: 0; pointer-events: none; }
+.scope span { padding: 2px 10px; border-radius: 999px; color: var(--muted); }
+.scope label:hover span { color: var(--text); }
+.scope input:checked + span { background: var(--accent); color: #fff; }
+.scope input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+#status { margin: 4px 2px; color: var(--muted); font-size: 13px; }
+#status.error { color: var(--error); }
+#status button {
+  margin-left: 6px; padding: 0; border: 0; background: none; color: var(--accent);
+  font: inherit; cursor: pointer; text-decoration: underline;
+}
+
+#results { list-style: none; margin: 4px 0 0; padding: 0; overflow-y: auto; min-height: 0; }
+#results:empty { display: none; }
+#results li {
+  padding: 4px 6px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#results li:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+#results li.more { color: var(--muted); cursor: default; font-style: italic; }
+#results li.more:hover { background: none; }
+#results mark { background: none; color: var(--accent); font-weight: 600; }
+
+#tooltip {
+  position: absolute; z-index: 3; pointer-events: none;
+  padding: 3px 7px; border-radius: 4px; font-size: 12px;
+  background: var(--panel); border: 1px solid var(--border); color: var(--text);
+  transform: translate(12px, 12px); white-space: nowrap;
+}
+
+#sheet-handle { display: none; }
+
+/* ---- Phones: the sidebar becomes a bottom sheet ------------------------
+   Collapsed (default): handle, search row and the status line, at the bottom
+   edge. Expanded (#sidebar.expanded): everything, scrolling inside the sheet
+   with the search row pinned at its top. The logo and language switch stay
+   at the top of the map. */
+@media (max-width: 640px) {
+  #sidebar {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto;
+    max-height: 78vh; max-height: 78dvh;
+    gap: 0; pointer-events: auto;
+    overflow-y: auto; overscroll-behavior: contain;
+    padding: 0 12px calc(8px + env(safe-area-inset-bottom));
+    background: var(--panel-solid);
+    border: 1px solid var(--border); border-bottom: 0; border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.15);
+  }
+  /* position: fixed escapes the sheet (it has no transform), so the brand row
+     sits at the top of the screen, leaving room for the zoom buttons. */
+  #brand { position: fixed; top: 10px; left: 10px; right: 58px; pointer-events: none; }
+  #logo img { width: 32px; height: 32px; }
+  .text-logo span { font-size: 15px; }
+
+  #sheet-handle {
+    display: block; position: sticky; top: 0; z-index: 1;
+    width: calc(100% + 24px); height: 22px; margin: 0 -12px; padding: 0;
+    border: 0; background: var(--panel-solid); cursor: grab; touch-action: none;
+  }
+  #sheet-handle::before {
+    content: ""; display: block; margin: 8px auto 0;
+    width: 40px; height: 5px; border-radius: 3px; background: var(--border);
+  }
+
+  #panel, .box {
+    background: none; border: 0; border-radius: 0; box-shadow: none; padding: 4px 0 10px;
+  }
+  #panel { flex: none; }
+  .box { border-top: 1px solid var(--border); padding-top: 10px; }
+  .search-row { position: sticky; top: 22px; z-index: 1; background: var(--panel-solid); padding-bottom: 6px; }
+  #q { font-size: 16px; } /* below 16px, iOS Safari zooms the page on focus */
+  #star { width: 42px; }
+  #results { overflow: visible; }
+  #results li { padding: 7px 6px; } /* bigger tap targets */
+  #starred-box { max-height: none; overflow: visible; }
+
+  #sidebar:not(.expanded) .scope,
+  #sidebar:not(.expanded) .options,
+  #sidebar:not(.expanded) #results,
+  #sidebar:not(.expanded) .box { display: none; }
+
+  /* Keep the map's attribution above the sheet (--sheet-h is set by app.js). */
+  .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { bottom: var(--sheet-h, 0px); }
+}
+
+/* Result list section headings ("Obce 12", "Ulice 340") and the muted
+   "· municipality" / "· district" after each name. */
+#results li.head {
+  margin-top: 6px; padding: 6px 6px 2px; cursor: default;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+#results li.head:first-child { margin-top: 0; }
+#results li.head:hover { background: none; }
+#results li.head span { font-weight: 400; margin-left: 4px; }
+#results .where { color: var(--muted); }
