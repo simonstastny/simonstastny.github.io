@@ -362,7 +362,7 @@
     else if (game.guesses.length >= game.limit) finish(false);
     render();
     // Game over: show the whole route and every guess (render() first: the panel's height changed).
-    if (game.over) fitTo([game.start, game.end, ...game.guesses.map((g) => g.i), ...(game.shortest ?? [])]);
+    if (game.over) { $("guess").blur(); fitTo(fitIds()); }
   }
 
   // The route from start to end through guessed districts, if there is one
@@ -406,6 +406,8 @@
     if (best !== undefined && best !== null) addGuess(best, true);
   }
   $("hint").addEventListener("click", hint);
+  // Don't take the focus from the guess box: on phones that would close the keyboard.
+  $("hint").addEventListener("mousedown", (e) => { if (document.activeElement === $("guess")) e.preventDefault(); });
 
   // ---- rendering --------------------------------------------------------------
 
@@ -568,8 +570,8 @@
     e.preventDefault();
     choose(suggestions[+li.dataset.k].i);
   });
-  $guess.addEventListener("blur", () => setTimeout(hideSuggest, 100));
-  $guess.addEventListener("focus", updateSuggest);
+  $guess.addEventListener("blur", () => { setTyping(false); setTimeout(hideSuggest, 100); });
+  $guess.addEventListener("focus", () => { setTyping(true); updateSuggest(); });
 
   // ---- layout -------------------------------------------------------------------
 
@@ -582,6 +584,53 @@
   }
   new ResizeObserver(updateSheetHeight).observe($sidebar);
 
+  // Typing on a phone: the panel shrinks to the guess box and the hint button
+  // (body.typing in style.css), and the map refits into the space left above it.
+  function setTyping(on) {
+    on = on && isPhone() && document.activeElement === $guess;
+    if (document.body.classList.contains("typing") === on) return;
+    document.body.classList.toggle("typing", on);
+    refitSoon();
+  }
+
+  // Where the browser lets the keyboard cover the page instead of shrinking it
+  // (iOS Safari; Chrome on Android shrinks it, see the viewport meta tag), lift
+  // the panel above the keyboard. Closing the keyboard (Android's back button)
+  // keeps the focus in the box, so leave typing mode then too.
+  const vv = window.visualViewport;
+  let vvHeight = vv ? vv.height : innerHeight;
+  function onViewport() {
+    const h = vv ? vv.height : innerHeight;
+    if (vv) {
+      const kb = Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
+      document.documentElement.style.setProperty("--kb", isPhone() ? kb + "px" : "0px");
+    }
+    // A big change is the keyboard opening or closing, not the address bar.
+    if (Math.abs(h - vvHeight) > 120) {
+      if (h > vvHeight && document.activeElement === $guess && isPhone()) $guess.blur();
+      refitSoon();
+    }
+    vvHeight = h;
+  }
+  (vv ?? window).addEventListener("resize", onViewport);
+  vv?.addEventListener("scroll", onViewport);
+
+  // Once the keyboard and the panel have settled, show start, end and the guesses again.
+  let refitTimer;
+  function refitSoon() {
+    clearTimeout(refitTimer);
+    refitTimer = setTimeout(() => {
+      if (!game || !isPhone()) return;
+      map.resize();
+      fitTo(fitIds());
+    }, 250);
+  }
+
+  // What the map shows: start, end and the guesses; when the game is over also
+  // a shortest route.
+  const fitIds = () => [game.start, game.end, ...game.guesses.map((g) => g.i),
+    ...(game.over ? game.shortest ?? [] : [])];
+
   // Fit the map to some districts in the part of the screen the panel leaves free.
   function fitTo(ids) {
     const S = sets[setKey];
@@ -592,7 +641,8 @@
       x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]);
     }
     const padding = isPhone()
-      ? { top: 60, bottom: $sidebar.offsetHeight + 20, left: 20, right: 20 }
+      ? { top: document.body.classList.contains("typing") ? 20 : 60, left: 20, right: 20,
+          bottom: Math.max(0, map.getContainer().getBoundingClientRect().bottom - $sidebar.getBoundingClientRect().top) + 20 }
       : { top: 40, bottom: 40, right: 60, left: $sidebar.getBoundingClientRect().right + 40 };
     map.fitBounds([[x0, y0], [x1, y1]], { padding, maxZoom: 14, duration: 600 });
   }

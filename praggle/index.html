@@ -2,7 +2,9 @@
 <html lang="cs">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- resizes-content: on Android the page shrinks above the keyboard instead of
+       sliding under it, so the map and the panel stay visible while typing. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
   <meta name="color-scheme" content="light dark">
   <title>Praggle – spojte pražské čtvrti</title>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -59,8 +61,11 @@
       <div id="play">
         <div class="guess-box">
           <div class="guess-row">
-            <input id="guess" type="text" placeholder="Napište čtvrť…" data-i18n-placeholder="placeholder"
-                   autocomplete="off" spellcheck="false" autocapitalize="words" enterkeyhint="go"
+            <!-- type="search", no name and the ignore flags keep the browser and
+                 password managers from offering passwords, addresses or cards. -->
+            <input id="guess" type="search" placeholder="Napište čtvrť…" data-i18n-placeholder="placeholder"
+                   autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words" enterkeyhint="go"
+                   data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"
                    role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest" aria-label="Čtvrť" data-i18n-label="guessLabel">
             <span class="kbd" aria-hidden="true">Enter</span>
           </div>
